@@ -1,0 +1,41 @@
+# Caddy reverse proxy for RModHub (used by docker-compose.prod.yml).
+#
+# RMODHUB_DOMAIN is injected from .env. A real hostname -> automatic Let's Encrypt /
+# ZeroSSL certificate; "localhost" -> Caddy's internal self-signed CA.
+# HTTP (:80) is redirected to HTTPS automatically.
+
+{$RMODHUB_DOMAIN} {
+	encode zstd gzip
+
+	# Phase 1 accepts JSON bodies of at most ~10 kb (RMODHUB_MAX_SEQUENCE_NT=10000 nt).
+	# 1 MB bounds abuse while leaving room for headers/JSON overhead. The phase-2
+	# nanopore upload route (BAM + move table, hundreds of MB) will need its own
+	# `handle /api/jobs/*` block with a much larger limit.
+	request_body {
+		max_size 1MB
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Frame-Options DENY
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# Do not advertise the server software.
+		-Server
+	}
+
+	# `api` resolves via the compose network. Caddy sets X-Forwarded-For/-Proto/-Host;
+	# uvicorn runs with --proxy-headers so FastAPI sees the original scheme.
+	reverse_proxy api:8000 {
+		# Model inference on a 10 kb input can take tens of seconds on a small CPU box.
+		transport http {
+			response_header_timeout 120s
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

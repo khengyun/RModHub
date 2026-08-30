@@ -1,0 +1,53 @@
+# Build context for Dockerfile. Anything listed here never reaches the image (or the
+# BuildKit context upload). Keep this list in sync when adding top-level directories.
+
+# VCS / editor / agent metadata
+.git
+.gitignore
+.gitattributes
+.github
+.claude
+.vscode
+.idea
+
+# Local environments and caches
+.venv
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.egg-info
+dist
+build
+
+# Tests and fixtures are not needed at runtime (the sample sequence is hard-coded in
+# app/api/samples.py; golden fixtures are consumed only by pytest).
+tests
+
+# Deployment tooling (Caddy, compose, CI) and dev scripts are used outside the image.
+deploy
+docker-compose*.yml
+Dockerfile
+.dockerignore
+Makefile
+scripts
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+
+# Docs: only README.md (referenced by pyproject `readme`) is needed. Root-level *.md
+# only; app/predictors/multirm/vendor/{LICENSE,UPSTREAM.md} stay in the image.
+*.md
+!README.md
+
+# Notebooks, scratch data, logs
+*.ipynb
+**/.ipynb_checkpoints
+notebooks
+scratch
+data
+*.log
+.DS_Store

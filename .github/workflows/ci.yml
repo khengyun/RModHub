@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies (locked, incl. dev group)
+        run: uv sync --frozen
+
+      - name: Ruff
+        run: uv run ruff check .
+
+      - name: Pytest
+        run: uv run pytest -q
+
+  docker:
+    name: Docker build and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: rmodhub-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image report and CPU-only torch guard
+        run: |
+          set -euo pipefail
+          docker image ls rmodhub-api:ci
+          # Fail if a CUDA build of torch or any nvidia runtime library slipped in.
+          docker run --rm rmodhub-api:ci python -c '
+          import torch, sys
+          v = torch.__version__
+          print("torch", v, "cuda available:", torch.cuda.is_available())
+          assert "+cpu" in v, f"expected CPU-only torch, got {v}"
+          assert not torch.cuda.is_available()
+          '
+          if docker run --rm rmodhub-api:ci sh -c 'ls /app/.venv/lib/python3.12/site-packages | grep -i nvidia'; then
+            echo "::error::nvidia packages present in image"; exit 1
+          fi
+
+      - name: Start container
+        run: |
+          docker run -d --name rmodhub -p 8000:8000 -e RMODHUB_PREDICTOR=multirm rmodhub-api:ci
+
+      - name: Wait for /health (up to 90 s)
+        run: |
+          set -u
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8000/health; then
+              echo; echo "healthy after ~$((i*2)) s"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::/health did not return 200 within 90 s"
+          docker logs rmodhub
+          exit 1
+
+      - name: Predict on the built-in sample sequence
+        run: |
+          set -euo pipefail
+          body=$(curl -fsS http://127.0.0.1:8000/api/samples/sequence \
+            | python3 -c 'import sys,json; print(json.dumps({"sequence": json.load(sys.stdin)["sequence"]}))')
+          code=$(curl -sS -o /tmp/predict.json -w '%{http_code}' \
+            -X POST http://127.0.0.1:8000/api/predict/sequence \
+            -H 'content-type: application/json' -d "$body")
+          echo "HTTP $code"
+          head -c 600 /tmp/predict.json; echo
+          test "$code" = "200"
+          python3 -c 'import json; d=json.load(open("/tmp/predict.json")); n=d.get("meta", {}).get("n_sites", len(d.get("results", []))); print("n_sites =", n); assert n > 0, "expected at least one predicted site for the sample"'
+
+      - name: Container logs
+        if: always()
+        run: docker logs rmodhub || true
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f rmodhub || true

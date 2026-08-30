@@ -1,0 +1,151 @@
+# RModHub — container orchestration.
+#
+#   Phase 1 (current, sequence branch / MultiRM):
+#     docker compose up -d --build          -> starts ONLY `api` (stateless, CPU inference)
+#
+#   Phase 2 (planned, nanopore signal branch / DirectRM — long-running BAM + move-table jobs):
+#     docker compose --profile phase2 up -d  -> api + postgres + redis + worker
+#
+#   Production (HTTPS on 443 via Caddy, Let's Encrypt):
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Configuration comes from a `.env` file next to this file (copy .env.example). Compose
+# reads it automatically for ${VAR} interpolation below.
+#
+# `postgres`, `redis` and `worker` carry `profiles: ["phase2"]`, so they are validated
+# but never created unless the profile is enabled. Nothing in phase 1 depends on them.
+
+name: rmodhub
+
+# Shared by api and worker; the worker will need the same environment (predictor
+# settings, thread limits) once it exists.
+x-app-env: &app-env
+  RMODHUB_PREDICTOR: ${RMODHUB_PREDICTOR:-multirm}
+  RMODHUB_MAX_SEQUENCE_NT: ${RMODHUB_MAX_SEQUENCE_NT:-10000}
+  RMODHUB_WARMUP: ${RMODHUB_WARMUP:-true}
+  RMODHUB_LOG_LEVEL: ${RMODHUB_LOG_LEVEL:-info}
+  # Optional: only forwarded to the container when set in .env / the shell (an empty
+  # value would fail pydantic parsing of `int | None` / JSON list).
+  RMODHUB_TORCH_THREADS:
+  RMODHUB_CORS_ORIGINS:
+
+# Phase-2 wiring (job queue + metadata store). Attach `<<: *phase2-env` to `api` as well
+# when the async branch lands; for now only the placeholder worker carries it.
+x-phase2-env: &phase2-env
+  DATABASE_URL: postgresql+psycopg://rmodhub:${POSTGRES_PASSWORD:-change-me}@postgres:5432/rmodhub
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  RMODHUB_UPLOAD_DIR: /data/uploads
+
+x-healthcheck-api: &healthcheck-api
+  # /health is 200 only once the model is loaded (503 before). start_period covers a
+  # slow 1-core box (~30 s load); start_interval polls fast during that window so
+  # `docker compose up --wait` returns as soon as the model is ready.
+  test:
+    - CMD
+    - python
+    - -c
+    - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status==200 else 1)"
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 60s
+  start_interval: 3s
+
+services:
+  # ---------------------------------------------------------------------------
+  # Phase 1: synchronous sequence prediction API (MultiRM, CPU-only torch)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rmodhub-api:local
+    restart: unless-stopped
+    ports:
+      # Host port is configurable; docker-compose.prod.yml removes this mapping and
+      # puts Caddy in front instead.
+      - "${RMODHUB_PORT:-8000}:8000"
+    environment:
+      <<: *app-env
+    volumes:
+      # Reserved for phase-2 uploads (BAM + move table). Unused in phase 1.
+      - uploads:/data/uploads
+    # Model + torch runtime is ~300-500 MB RSS; 3 GiB leaves headroom for concurrent
+    # requests on long (10 kb) inputs. `mem_limit` is the plain-compose spelling,
+    # `deploy.resources` the Compose-spec one; Compose v2 honours both.
+    mem_limit: 3g
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+    security_opt:
+      - no-new-privileges:true
+    healthcheck: *healthcheck-api
+
+  # ---------------------------------------------------------------------------
+  # Phase 2 (profile "phase2"): async nanopore branch. Pre-wired, not started by default.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["phase2"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rmodhub
+      POSTGRES_USER: rmodhub
+      # Set POSTGRES_PASSWORD in .env; the fallback exists only so `docker compose
+      # config` validates without one. Never run phase 2 with the default.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rmodhub -d rmodhub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["phase2"]
+    restart: unless-stopped
+    # Broker/result backend only: no persistence, bounded memory, fail loudly if full.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    # Same image as `api` (built by the api service; nothing to pull).
+    image: rmodhub-api:local
+    pull_policy: never
+    profiles: ["phase2"]
+    restart: unless-stopped
+    # PLACEHOLDER. When the DirectRM branch lands this becomes:
+    #   command: ["celery", "-A", "app.worker", "worker", "--loglevel=info", "--concurrency=1"]
+    # (add celery[redis], sqlalchemy, psycopg to pyproject.toml first).
+    command: ["python", "-c", "print('phase-2 celery worker placeholder: replace with `celery -A app.worker worker`')"]
+    environment:
+      <<: [*app-env, *phase2-env]
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    mem_limit: 4g
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  # Postgres data directory (phase 2).
+  pgdata:
+  # Uploaded BAM / move-table files shared between api (receives) and worker (processes).
+  uploads:

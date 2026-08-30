@@ -1,0 +1,4 @@
+Swagger UI 5.32.14 (swagger-ui-bundle.js, swagger-ui.css)
+Copyright SmartBear Software - Apache License 2.0 (see LICENSE in this directory).
+Source: https://github.com/swagger-api/swagger-ui  (files taken from the swagger-ui-dist npm package)
+Self-hosted here so that /docs does not load third-party assets (NAR Web Server Issue guideline).
