@@ -11,7 +11,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from app.schemas import MOD_TYPES, ModSite
+from app.predictors.base import FLANK_NT
+from app.schemas import MOD_TYPES, AttentionWindow, ModSite, SiteAttention
+
+# (k, w) -> [(start, end, score), ...]: 0-based inclusive absolute nucleotide indices of the
+# top attention windows of the significant (mod type k, window w) pair, best first.
+AttentionWindows = dict[tuple[int, int], list[tuple[int, int, float]]]
 
 
 @dataclass(frozen=True)
@@ -27,6 +32,8 @@ class MultiRMMatrices:
     labels: np.ndarray  # (12, N) int64 0/1, 1 where p_value < alpha (index = 0-based nt)
     attention: np.ndarray  # (12, N) int64 0/1, top-3 attention windows of significant sites
     inference_ms: float  # wall time of the model pass + post-processing
+    # Per-site windows behind the `attention` mask (None when attention was not computed).
+    attention_windows: AttentionWindows | None = None
 
     @property
     def sequence_length(self) -> int:
@@ -57,3 +64,26 @@ def matrices_to_sites(matrices: MultiRMMatrices, alpha: float) -> list[ModSite]:
             )
         )
     return sites
+
+
+def sites_attention(matrices: MultiRMMatrices, sites: list[ModSite]) -> list[SiteAttention]:
+    """One `SiteAttention` per site (same order), converting the adapter's 0-based
+    absolute window coordinates to the 1-based coordinates of the API."""
+    if matrices.attention_windows is None:
+        raise ValueError("matrices were computed without attention")
+    out: list[SiteAttention] = []
+    for site in sites:
+        k = MOD_TYPES.index(site.mod_type)
+        w = site.position - (FLANK_NT + 1)
+        windows = matrices.attention_windows.get((k, w), [])
+        out.append(
+            SiteAttention(
+                position=site.position,
+                mod_type=site.mod_type,
+                windows=[
+                    AttentionWindow(start=start + 1, end=end + 1, score=float(score))
+                    for start, end, score in windows
+                ],
+            )
+        )
+    return out

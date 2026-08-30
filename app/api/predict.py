@@ -117,7 +117,9 @@ def predict_sequence(
     alpha = body.alpha if body.alpha is not None else settings.default_alpha
 
     try:
-        result = predictor.predict(normalized.sequence, alpha)
+        result = predictor.predict(
+            normalized.sequence, alpha, include_attention=body.include_attention
+        )
     except ValueError as exc:
         # The predictor's own defensive checks. `normalize_sequence` should already have
         # rejected anything that trips them, so this is belt-and-braces, scoped to this
@@ -147,6 +149,7 @@ def predict_sequence(
         mod_types=list(MOD_TYPES),
         note=f"MultiRM does not predict the first and last {FLANK_NT} nt of the input.",
         extra=extra,
+        attention=result.attention,
     )
 
     total_ms = (perf_counter() - t0) * 1000

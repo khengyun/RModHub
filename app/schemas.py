@@ -59,6 +59,24 @@ class ModSite(BaseModel):
 # shared contract and must not change; everything below is owned by the API layer.
 
 
+class AttentionWindow(BaseModel):
+    """One region the model attended to when scoring a site (upstream `--att_window 3`)."""
+
+    start: int = Field(ge=1, description="1-based inclusive start in the input sequence.")
+    end: int = Field(ge=1, description="1-based inclusive end in the input sequence.")
+    score: float = Field(description="Summed per-nucleotide attention weight of the window.")
+
+
+class SiteAttention(BaseModel):
+    """Top attention windows for one predicted site; parallels one `ModSite` row."""
+
+    position: int = Field(ge=1)
+    mod_type: str
+    windows: list[AttentionWindow] = Field(
+        description="Ranked best-first (upstream `--top 3`), non-overlapping."
+    )
+
+
 class PredictSequenceRequest(BaseModel):
     """Body of `POST /api/predict/sequence`."""
 
@@ -80,6 +98,13 @@ class PredictSequenceRequest(BaseModel):
             "Sites with p_value < alpha are returned. Defaults to the server default (0.05)."
         ),
         json_schema_extra={"example": 0.05},
+    )
+    include_attention: bool = Field(
+        default=False,
+        description=(
+            "Also return, in meta.attention, the top-3 attention windows the model used for "
+            "each reported site (for visualisation). Adds ~10-30% latency on long inputs."
+        ),
     )
 
 
@@ -103,6 +128,13 @@ class PredictionMeta(BaseModel):
     mod_types: list[str] = Field(default_factory=lambda: list(MOD_TYPES))
     note: str = "MultiRM does not predict the first and last 25 nt of the input."
     extra: dict = Field(default_factory=dict, description="Backend-specific extras.")
+    attention: list[SiteAttention] | None = Field(
+        default=None,
+        description=(
+            "Present only when the request set include_attention=true. One entry per "
+            "row of `results`, same order."
+        ),
+    )
 
 
 class PredictSequenceResponse(BaseModel):

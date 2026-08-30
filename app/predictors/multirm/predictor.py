@@ -22,7 +22,12 @@ import pandas as pd
 import torch
 
 from app.predictors.base import FLANK_NT, MIN_SEQUENCE_NT, WINDOW_NT, SequencePrediction
-from app.predictors.multirm.adapter import MultiRMMatrices, matrices_to_sites
+from app.predictors.multirm.adapter import (
+    AttentionWindows,
+    MultiRMMatrices,
+    matrices_to_sites,
+    sites_attention,
+)
 from app.predictors.multirm.vendor.attention_utils import cal_attention, highest_x
 from app.predictors.multirm.vendor.models import model_v3
 from app.schemas import MOD_TYPES
@@ -264,8 +269,12 @@ class MultiRMPredictor:
         labels[:, FLANK_NT : n - FLANK_NT] = significant
 
         attention = np.zeros((len(MOD_TYPES), n), dtype=np.int64)
-        if with_attention and att32 is not None and significant.any():
-            self._fill_attention(attention, att32, significant)
+        attention_windows: AttentionWindows | None = None
+        if with_attention and att32 is not None:
+            attention_windows = self._attention_windows(att32, significant)
+            for (k, _w), windows in attention_windows.items():
+                for start, end, _score in windows:
+                    attention[k, start : end + 1] = 1
 
         positions = np.arange(FLANK_NT + 1, FLANK_NT + 1 + n_windows, dtype=np.int64)
         return MultiRMMatrices(
@@ -275,13 +284,18 @@ class MultiRMPredictor:
             labels=labels,
             attention=attention,
             inference_ms=(time.perf_counter() - t0) * 1000.0,
+            attention_windows=attention_windows,
         )
 
     @staticmethod
-    def _fill_attention(attention: np.ndarray, att32: np.ndarray, significant: np.ndarray) -> None:
-        """Mark the top-`ATT_TOP` attention windows (width `ATT_WINDOW`) of every
-        significant (mod type, window) pair with 1s, exactly like upstream `main.py`."""
+    def _attention_windows(att32: np.ndarray, significant: np.ndarray) -> AttentionWindows:
+        """Top-`ATT_TOP` attention windows (width `ATT_WINDOW`) of every significant
+        (mod type k, window w) pair, as 0-based absolute nucleotide ranges, best first.
+        OR-ing them into a (12, N) mask reproduces upstream's `attention.csv`."""
+        out: AttentionWindows = {}
         sig_windows = np.flatnonzero(significant.any(axis=0))
+        if sig_windows.size == 0:
+            return out
         # (n_sig, 12, 51) float64 per-nucleotide attention for the windows that need it.
         per_nt = cal_attention(att32[sig_windows])
         for row, w in enumerate(sig_windows):
@@ -289,15 +303,22 @@ class MultiRMPredictor:
                 ranked = highest_x(per_nt[row, k], w=ATT_WINDOW)
                 # Upstream indexes ranked[1..top] unconditionally; a 51-nt window with
                 # w=3, p=1 always yields >= 3 windows, the guard only makes it explicit.
-                for rank in range(1, min(ATT_TOP, len(ranked)) + 1):
-                    _score, start, end = ranked[rank]
-                    attention[k, start + w : end + w + 1] = 1
+                out[(int(k), int(w))] = [
+                    (int(start + w), int(end + w), float(score))
+                    for score, start, end in (
+                        ranked[rank] for rank in range(1, min(ATT_TOP, len(ranked)) + 1)
+                    )
+                ]
+        return out
 
     # --------------------------------------------------------------- protocol
-    def predict(self, sequence: str, alpha: float = 0.05) -> SequencePrediction:
+    def predict(
+        self, sequence: str, alpha: float = 0.05, *, include_attention: bool = False
+    ) -> SequencePrediction:
         t0 = time.perf_counter()
-        matrices = self.predict_matrix(sequence, alpha, with_attention=False)
+        matrices = self.predict_matrix(sequence, alpha, with_attention=include_attention)
         sites = matrices_to_sites(matrices, alpha)
+        attention = sites_attention(matrices, sites) if include_attention else None
         n = matrices.sequence_length
         return SequencePrediction(
             sites=sites,
@@ -313,6 +334,7 @@ class MultiRMPredictor:
                 "batch_size": self._batch_size,
                 "weights_sha256": self._weights_sha256,
             },
+            attention=attention,
         )
 
     def warmup(self) -> None:

@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
-from app.schemas import ModSite
+from app.schemas import ModSite, SiteAttention
 
 # MultiRM scans 51-nt windows and predicts the centre nucleotide, so the first and
 # last 25 nt of any input never receive a prediction.
@@ -35,9 +35,9 @@ class SequencePrediction:
     model_name: str
     model_version: str
     inference_ms: float
-    extra: dict = field(
-        default_factory=dict
-    )  # backend-specific extras for `meta`, JSON-serialisable
+    extra: dict = field(default_factory=dict)  # backend extras for `meta`, JSON-serialisable
+    # Parallel to `sites` (same order) when the caller asked for attention; else None.
+    attention: list[SiteAttention] | None = None
 
 
 @runtime_checkable
@@ -51,12 +51,18 @@ class SequencePredictor(Protocol):
     name: str
     version: str
 
-    def predict(self, sequence: str, alpha: float = 0.05) -> SequencePrediction:
+    def predict(
+        self, sequence: str, alpha: float = 0.05, *, include_attention: bool = False
+    ) -> SequencePrediction:
         """Score `sequence`.
 
         `sequence` is already normalised by the API layer: upper-case, only A/C/G/T
         (U already mapped to T), length >= MIN_SEQUENCE_NT. Implementations should
         still validate defensively and raise ValueError on bad input.
+
+        With `include_attention=True` the result also carries, per reported site, the
+        regions the model attended to (`SequencePrediction.attention`); backends that
+        have no such notion may return None.
         """
         ...
 
