@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* System font stack only: nothing is downloaded from a font CDN (NAR: no third-party
+   requests / cookies). Tailwind's default `font-sans` is already a system stack; this
+   theme block pins it explicitly and defines the few project tokens. */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --color-brand-50: #eef4fb;
+  --color-brand-100: #d9e6f5;
+  --color-brand-600: #1f4e79;
+  --color-brand-700: #17395a;
+  --color-brand-800: #102a43;
+}
+
+html { color-scheme: light; }
+body { @apply bg-slate-50 text-slate-900 antialiased; }

@@ -8,8 +8,9 @@
 # fails. With RMODHUB_DOMAIN=localhost (the default) Caddy issues a self-signed
 # certificate from its internal CA instead, which is handy for testing the full stack.
 #
-# The api container is no longer published on the host; only Caddy talks to it over the
-# compose network.
+# Request path: browser -> Caddy (TLS) -> web (nginx: SPA + /api,/docs,... proxy) -> api.
+# Neither api nor web is published on the host any more; only Caddy talks to web over
+# the compose network, and only web talks to api.
 
 services:
   api:
@@ -18,6 +19,12 @@ services:
     ports: !override []
     expose:
       - "8000"
+
+  web:
+    # Same treatment: browsers reach nginx only through Caddy.
+    ports: !override []
+    expose:
+      - "80"
 
   caddy:
     image: caddy:2-alpine
@@ -33,7 +40,8 @@ services:
       - caddy_data:/data        # ACME account + certificates (must persist!)
       - caddy_config:/config
     depends_on:
-      api:
+      # web itself waits for api to be healthy (docker-compose.yml).
+      web:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true

@@ -1,7 +1,10 @@
 # RModHub — container orchestration.
 #
 #   Phase 1 (current, sequence branch / MultiRM):
-#     docker compose up -d --build          -> starts ONLY `api` (stateless, CPU inference)
+#     docker compose up -d --build          -> starts `api` (FastAPI + MultiRM, CPU inference)
+#                                              and `web` (nginx: React UI + reverse proxy)
+#                                              -> open http://localhost:8080
+#                                              (API directly: http://localhost:8000)
 #
 #   Phase 2 (planned, nanopore signal branch / DirectRM — long-running BAM + move-table jobs):
 #     docker compose --profile phase2 up -d  -> api + postgres + redis + worker
@@ -82,6 +85,41 @@ services:
     security_opt:
       - no-new-privileges:true
     healthcheck: *healthcheck-api
+
+  # ---------------------------------------------------------------------------
+  # Web UI: nginx serving the built React app and proxying /api, /health, /docs,
+  # /openapi.json and /static to `api` (frontend/nginx.conf). Browsers only need this
+  # container; `api` keeps its own host port so developers can curl it directly.
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: rmodhub-web:local
+    restart: unless-stopped
+    ports:
+      # http://localhost:8080 by default. docker-compose.prod.yml removes this mapping
+      # and puts Caddy (HTTPS on 443) in front of nginx instead.
+      - "${RMODHUB_WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    # nginx + static files: a few tens of MB.
+    mem_limit: 256m
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # Answered by nginx itself (frontend/nginx.conf); does not depend on api.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+      start_interval: 2s
 
   # ---------------------------------------------------------------------------
   # Phase 2 (profile "phase2"): async nanopore branch. Pre-wired, not started by default.

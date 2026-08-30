@@ -1,0 +1,7 @@
+{
+  "name": "multirm_readme_151nt",
+  "description": "First 151 nt of the example sequence from the MultiRM README; 22 sites at alpha=0.05",
+  "sequence": "GGGGCCGTGGATACCTGCCTTTTAATTCTTTTTTATTCGCCCATCGGGGCCGCGGATACCTGCTTTTTATTTTTTTTTCCTTAGCCCATCGGGGTATCGGATACCTGCTGATTCCCTTCCCCTCTGAACCCCCAACACTCTGGCCCATCGG",
+  "length": 151,
+  "source_url": "https://github.com/Tsedao/MultiRM"
+}

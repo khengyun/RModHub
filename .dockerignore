@@ -25,6 +25,9 @@ build
 # app/api/samples.py; golden fixtures are consumed only by pytest).
 tests
 
+# The web UI has its own image (frontend/Dockerfile); keep node_modules out of this context.
+frontend
+
 # Deployment tooling (Caddy, compose, CI) and dev scripts are used outside the image.
 deploy
 docker-compose*.yml

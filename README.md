@@ -16,21 +16,25 @@ table / CSV export serves both.
 ## Quick start
 
 ```bash
-docker compose up --build          # API on http://localhost:8000
-curl localhost:8000/health
-curl localhost:8000/api/samples/sequence
+docker compose up --build          # web UI on http://localhost:8080, API on http://localhost:8000
+# ports busy? RMODHUB_WEB_PORT=18080 RMODHUB_PORT=18000 docker compose up --build
 ```
 
-Without Docker (needs [uv](https://docs.astral.sh/uv/)):
+Open <http://localhost:8080>, press **Load sample data**, then **Predict modification sites**:
+the 151-nt sample yields 22 sites at alpha = 0.05, shown in a track view and a filterable table
+with CSV download. **Help** explains how to read the results.
+
+Without Docker (needs [uv](https://docs.astral.sh/uv/) and Node ≥ 20):
 
 ```bash
 uv sync                                    # installs CPU-only torch from download.pytorch.org/whl/cpu
-uv run uvicorn app.main:app --port 8000    # or: make dev
-uv run pytest                              # or: make test
+uv run uvicorn app.main:app --port 8000    # backend            (or: make dev)
+cd frontend && npm ci && npm run dev       # web UI on :5173, proxies /api to :8000 (or: make web-dev)
+uv run pytest                              # backend tests      (or: make test)
 ```
 
 Interactive API docs: <http://localhost:8000/docs> (Swagger UI is self-hosted from `app/static/swagger/`,
-no CDN). Landing page with license notice: <http://localhost:8000/>.
+no CDN). The API also serves a minimal landing page with the license notice at <http://localhost:8000/>.
 
 ## API
 
@@ -72,6 +76,34 @@ Returns the built-in sample (151 nt from the MultiRM README) for a "Load sample"
 ### `GET /health`
 
 `200 {"status": "ok", "model_loaded": true, ...}` once the model is in memory, `503` before.
+
+## Web UI (`frontend/`)
+
+React 19 + Vite 7 + TypeScript + Tailwind v4, served by nginx (`frontend/nginx.conf`) which also
+proxies `/api`, `/health`, `/docs` to the API container. Built for wet-lab users and the NAR Web
+Server Issue checklist:
+
+| requirement | where |
+|---|---|
+| Load sample data (+ download it as FASTA) | form buttons |
+| Filter (type, p-value, probability, position, text) and sort every column; pagination for poly-U inputs | results table |
+| CSV download | `Download CSV` → backend `?format=csv` (all rows); `visible rows` → client-side |
+| Visualisation | SVG track view: one lane per modification type, zoom/pan, nucleotide letters when zoomed in, **attention windows** highlighted for the selected site |
+| Help that explains how to *read* results | `/help` (p-values, 25-nt flanks, the 12 types, several types at one position) |
+| License on the landing page | footer + About strip on `/` |
+| No third-party assets, no cookies, no login | system font stack, everything bundled; `npm run check:no-cdn` fails the Docker build on any external resource; the E2E suite records every network request and asserts none leaves the origin and that no cookie is set; nginx sends a `default-src 'self'` CSP |
+| Sync / async ready | `/signal` tab and `/result/{job_id}` route reserved for the nanopore branch |
+
+Commands (from `frontend/`): `npm run dev`, `npm run build` (tsc + vite), `npm run test`
+(vitest, jsdom), `npm run check:no-cdn`, `npm run e2e` (Playwright, 31 tests, against
+`E2E_BASE_URL`, default the Docker stack on `:8080`; `E2E_START_VITE=1` runs against a dev
+server + a local backend on `:8000` instead).
+
+A raw `grep -rE "https?://" dist/` is *not* empty, and that is expected: it finds XML namespace
+identifiers (`w3.org`), documentation links embedded in React / React Router *error message
+strings*, and the three credit hyperlinks (MultiRM repository, paper DOI, MIT license). None of
+them is a resource the page loads — `check:no-cdn` classifies exactly these and fails on anything
+else, and the `no-external-requests` E2E test verifies the runtime behaviour.
 
 ## Result schema
 
@@ -168,12 +200,20 @@ app/
     multirm/            vendored MultiRM (vendor/, weights/), predictor.py, adapter.py
 scripts/bench_multirm.py
 tests/                  golden regression, validation, equivalence (U/T), perf (load-once proof)
-Dockerfile, docker-compose.yml, docker-compose.prod.yml, deploy/Caddyfile
+frontend/
+  src/api/              typed client + JSON fixtures captured from the real API
+  src/pages/            SequencePage (tool + landing), HelpPage, SignalPage (phase-2 placeholder)
+  src/components/       form/, results/ (table, filters, CSV), track/ (SVG track view), layout/
+  src/lib/              modTypes (12 types: colour + description), sequence normalisation, download
+  e2e/                  Playwright: sample flow (22 sites), filters/sort, CSV, validation, 10 kb, no-external-requests
+  Dockerfile, nginx.conf, scripts/check-no-external-urls.mjs
+Dockerfile, docker-compose.yml (api + web; postgres/redis/worker behind --profile phase2),
+docker-compose.prod.yml + deploy/Caddyfile (HTTPS 443)
 ```
 
 ## Plugging in branch B (nanopore / DirectRM) later
 
-Nothing in phase 1 needs to change; add alongside:
+Nothing in phase 1 needs to change; add alongside (backend first, then the UI):
 
 1. **Predictor** — `app/predictors/directrm/` implementing a `SignalPredictor` protocol next to
    `SequencePredictor` in `app/predictors/base.py` (`predict(bam_path, move_table_path, ...) -> list[ModSite]`
@@ -187,6 +227,9 @@ Nothing in phase 1 needs to change; add alongside:
    as the sequence endpoint, so the frontend table/CSV code is shared). Raise the Caddy
    `request_body max_size` for BAM uploads.
 4. **Sample** — `GET /api/samples/signal` serving a small BAM + move table.
+5. **UI** — fill in `frontend/src/pages/SignalPage.tsx` (upload form → job id), add
+   `/result/:jobId` (poll, then render the same `ResultsTable` + `TrackView` from the shared
+   `ModSite` rows; the table already shows `transcript_id` / `coverage` columns when present).
 
 Out of scope for both phases so far: calibration of probabilities between the two branches.
 

@@ -1,0 +1,8 @@
+{
+  "status": "ok",
+  "model_name": "MultiRM",
+  "model_version": "trained_model_51seqs",
+  "model_loaded": true,
+  "uptime_s": 0.0,
+  "version": "0.1.0"
+}

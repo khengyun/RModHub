@@ -1,0 +1,16 @@
+{
+  "status": 422,
+  "body": {
+    "detail": "sequence: Field required",
+    "errors": [
+      {
+        "type": "missing",
+        "loc": [
+          "body",
+          "sequence"
+        ],
+        "msg": "Field required"
+      }
+    ]
+  }
+}

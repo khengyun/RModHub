@@ -1,0 +1,6 @@
+{
+  "status": 422,
+  "body": {
+    "detail": "sequence too short: 50 nt after removing whitespace (must be at least 51 nt)"
+  }
+}

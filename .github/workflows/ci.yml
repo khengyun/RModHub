@@ -111,3 +111,90 @@ jobs:
       - name: Stop container
         if: always()
         run: docker rm -f rmodhub || true
+
+  frontend:
+    name: Frontend typecheck, unit tests, build, no-CDN check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        # --passWithNoTests: vitest exits 1 when no *.test.ts(x) file exists yet.
+        run: npm run test -- --passWithNoTests
+
+      - name: Build
+        run: npm run build
+
+      - name: No external resources in the bundle
+        run: npm run check:no-cdn
+
+  e2e:
+    name: End-to-end (Playwright vs. Docker stack)
+    runs-on: ubuntu-latest
+    needs: frontend
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Start the stack (api + web) and wait for health
+        run: docker compose up -d --build --wait
+
+      - name: Smoke-check the web entrypoint
+        run: |
+          set -euo pipefail
+          curl -fsS -o /dev/null -w 'GET /health via web: %{http_code}\n' http://localhost:8080/health
+          curl -fsS -o /dev/null -w 'GET / via web: %{http_code}\n' http://localhost:8080/
+
+      - name: Run Playwright
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://localhost:8080
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
+
+      - name: Stack logs
+        if: failure()
+        run: docker compose logs --no-color --tail=300
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
