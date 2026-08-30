@@ -1,0 +1,33 @@
+# Build context for frontend/Dockerfile. Only package files, sources, public/, the vite/ts
+# configs, scripts/ (the no-external-URL check) and nginx.conf need to reach the image.
+
+node_modules
+dist
+.vite
+
+# Tests: unit (vitest) and end-to-end (playwright) run outside the image.
+e2e
+playwright.config.ts
+playwright-report
+test-results
+blob-report
+**/*.test.ts
+**/*.test.tsx
+src/test-setup.ts
+
+# VCS / editor / agent metadata
+.git
+.gitignore
+.claude
+.vscode
+.idea
+
+# Local config / secrets
+.env
+.env.*
+*.local
+
+# Docker files themselves and docs
+Dockerfile
+.dockerignore
+*.md

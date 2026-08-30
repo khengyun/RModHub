@@ -1,0 +1,700 @@
+{
+  "results": [
+    {
+      "transcript_id": null,
+      "position": 52,
+      "mod_type": "Gm",
+      "probability": 0.5551444292068481,
+      "p_value": 0.02666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 63,
+      "mod_type": "m5C",
+      "probability": 0.5317699313163757,
+      "p_value": 0.04666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 68,
+      "mod_type": "m5U",
+      "probability": 0.35029715299606323,
+      "p_value": 0.04666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 69,
+      "mod_type": "m1A",
+      "probability": 0.13931241631507874,
+      "p_value": 0.04,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 71,
+      "mod_type": "Um",
+      "probability": 0.22705930471420288,
+      "p_value": 0.04666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 71,
+      "mod_type": "m5U",
+      "probability": 0.37319862842559814,
+      "p_value": 0.02666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 72,
+      "mod_type": "Um",
+      "probability": 0.22070851922035217,
+      "p_value": 0.04666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 72,
+      "mod_type": "m5U",
+      "probability": 0.3761088252067566,
+      "p_value": 0.02666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 73,
+      "mod_type": "m5U",
+      "probability": 0.34629589319229126,
+      "p_value": 0.04666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 74,
+      "mod_type": "m5U",
+      "probability": 0.34662094712257385,
+      "p_value": 0.04666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 79,
+      "mod_type": "Cm",
+      "probability": 0.36288708448410034,
+      "p_value": 0.03333333333333333,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 79,
+      "mod_type": "m5C",
+      "probability": 0.5522277355194092,
+      "p_value": 0.02,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 99,
+      "mod_type": "Gm",
+      "probability": 0.6248964667320251,
+      "p_value": 0.02,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 107,
+      "mod_type": "Gm",
+      "probability": 0.6809046864509583,
+      "p_value": 0.006666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 110,
+      "mod_type": "Gm",
+      "probability": 0.5173221230506897,
+      "p_value": 0.03333333333333333,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 114,
+      "mod_type": "m5C",
+      "probability": 0.5471857190132141,
+      "p_value": 0.02,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 115,
+      "mod_type": "m5C",
+      "probability": 0.5452179312705994,
+      "p_value": 0.02666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 119,
+      "mod_type": "m5C",
+      "probability": 0.5476781129837036,
+      "p_value": 0.02,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 123,
+      "mod_type": "Um",
+      "probability": 0.23815594613552094,
+      "p_value": 0.02666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 123,
+      "mod_type": "m5U",
+      "probability": 0.3848850429058075,
+      "p_value": 0.02,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 123,
+      "mod_type": "Psi",
+      "probability": 0.3272227942943573,
+      "p_value": 0.04666666666666667,
+      "coverage": null,
+      "source": "sequence"
+    },
+    {
+      "transcript_id": null,
+      "position": 124,
+      "mod_type": "m5C",
+      "probability": 0.5372720956802368,
+      "p_value": 0.03333333333333333,
+      "coverage": null,
+      "source": "sequence"
+    }
+  ],
+  "meta": {
+    "sequence_length": 151,
+    "predicted_start": 26,
+    "predicted_end": 126,
+    "alpha": 0.05,
+    "n_sites": 22,
+    "model_name": "MultiRM",
+    "model_version": "trained_model_51seqs",
+    "inference_ms": 60.49,
+    "source": "sequence",
+    "transcript_id": null,
+    "mod_types": [
+      "Am",
+      "Cm",
+      "Gm",
+      "Um",
+      "m1A",
+      "m5C",
+      "m5U",
+      "m6A",
+      "m6Am",
+      "m7G",
+      "Psi",
+      "AtoI"
+    ],
+    "note": "MultiRM does not predict the first and last 25 nt of the input.",
+    "extra": {
+      "n_windows": 101,
+      "batch_size": 256,
+      "weights_sha256": "61f6d72aa1094ada4516bb68086d85c3d66cdac0d7deb3fd33905fa2339f608b",
+      "input_had_u": false,
+      "input_had_fasta_header": false
+    },
+    "attention": [
+      {
+        "position": 52,
+        "mod_type": "Gm",
+        "windows": [
+          {
+            "start": 50,
+            "end": 52,
+            "score": 2.752229154109955
+          },
+          {
+            "start": 37,
+            "end": 39,
+            "score": 0.017108222469687462
+          },
+          {
+            "start": 33,
+            "end": 35,
+            "score": 0.007016668329015374
+          }
+        ]
+      },
+      {
+        "position": 63,
+        "mod_type": "m5C",
+        "windows": [
+          {
+            "start": 61,
+            "end": 63,
+            "score": 2.700488805770874
+          },
+          {
+            "start": 38,
+            "end": 40,
+            "score": 0.10356880724430084
+          },
+          {
+            "start": 44,
+            "end": 46,
+            "score": 0.03961044829338789
+          }
+        ]
+      },
+      {
+        "position": 68,
+        "mod_type": "m5U",
+        "windows": [
+          {
+            "start": 66,
+            "end": 68,
+            "score": 2.614071846008301
+          },
+          {
+            "start": 45,
+            "end": 47,
+            "score": 0.13626135140657425
+          },
+          {
+            "start": 49,
+            "end": 51,
+            "score": 0.044181167148053646
+          }
+        ]
+      },
+      {
+        "position": 69,
+        "mod_type": "m1A",
+        "windows": [
+          {
+            "start": 68,
+            "end": 70,
+            "score": 1.9232056736946106
+          },
+          {
+            "start": 45,
+            "end": 47,
+            "score": 0.20443154126405716
+          },
+          {
+            "start": 86,
+            "end": 88,
+            "score": 0.16039594262838364
+          }
+        ]
+      },
+      {
+        "position": 71,
+        "mod_type": "Um",
+        "windows": [
+          {
+            "start": 70,
+            "end": 72,
+            "score": 2.594959318637848
+          },
+          {
+            "start": 51,
+            "end": 53,
+            "score": 0.06876252591609955
+          },
+          {
+            "start": 47,
+            "end": 49,
+            "score": 0.011147174518555403
+          }
+        ]
+      },
+      {
+        "position": 71,
+        "mod_type": "m5U",
+        "windows": [
+          {
+            "start": 70,
+            "end": 72,
+            "score": 2.534844219684601
+          },
+          {
+            "start": 50,
+            "end": 52,
+            "score": 0.07066221907734871
+          },
+          {
+            "start": 46,
+            "end": 48,
+            "score": 0.014866610756143928
+          }
+        ]
+      },
+      {
+        "position": 72,
+        "mod_type": "Um",
+        "windows": [
+          {
+            "start": 71,
+            "end": 73,
+            "score": 2.48567533493042
+          },
+          {
+            "start": 51,
+            "end": 53,
+            "score": 0.05614105798304081
+          },
+          {
+            "start": 90,
+            "end": 92,
+            "score": 0.00793192908167839
+          }
+        ]
+      },
+      {
+        "position": 72,
+        "mod_type": "m5U",
+        "windows": [
+          {
+            "start": 71,
+            "end": 73,
+            "score": 2.4406911730766296
+          },
+          {
+            "start": 50,
+            "end": 52,
+            "score": 0.07764915935695171
+          },
+          {
+            "start": 54,
+            "end": 56,
+            "score": 0.010593003360554576
+          }
+        ]
+      },
+      {
+        "position": 73,
+        "mod_type": "m5U",
+        "windows": [
+          {
+            "start": 72,
+            "end": 74,
+            "score": 2.449670374393463
+          },
+          {
+            "start": 51,
+            "end": 53,
+            "score": 0.0678269024938345
+          },
+          {
+            "start": 55,
+            "end": 57,
+            "score": 0.005909451167099178
+          }
+        ]
+      },
+      {
+        "position": 74,
+        "mod_type": "m5U",
+        "windows": [
+          {
+            "start": 73,
+            "end": 75,
+            "score": 2.452224016189575
+          },
+          {
+            "start": 51,
+            "end": 53,
+            "score": 0.04037234093993902
+          },
+          {
+            "start": 55,
+            "end": 57,
+            "score": 0.005958474823273718
+          }
+        ]
+      },
+      {
+        "position": 79,
+        "mod_type": "Cm",
+        "windows": [
+          {
+            "start": 77,
+            "end": 79,
+            "score": 2.567714810371399
+          },
+          {
+            "start": 81,
+            "end": 83,
+            "score": 0.004763723991345614
+          },
+          {
+            "start": 58,
+            "end": 60,
+            "score": 0.004527828539721668
+          }
+        ]
+      },
+      {
+        "position": 79,
+        "mod_type": "m5C",
+        "windows": [
+          {
+            "start": 77,
+            "end": 79,
+            "score": 2.527309477329254
+          },
+          {
+            "start": 81,
+            "end": 83,
+            "score": 0.011096697999164462
+          },
+          {
+            "start": 85,
+            "end": 87,
+            "score": 0.003146661794744432
+          }
+        ]
+      },
+      {
+        "position": 99,
+        "mod_type": "Gm",
+        "windows": [
+          {
+            "start": 97,
+            "end": 99,
+            "score": 2.6524418592453003
+          },
+          {
+            "start": 85,
+            "end": 87,
+            "score": 0.01817194651812315
+          },
+          {
+            "start": 89,
+            "end": 91,
+            "score": 0.017697596456855536
+          }
+        ]
+      },
+      {
+        "position": 107,
+        "mod_type": "Gm",
+        "windows": [
+          {
+            "start": 105,
+            "end": 107,
+            "score": 2.5231857895851135
+          },
+          {
+            "start": 84,
+            "end": 86,
+            "score": 0.02320327004417777
+          },
+          {
+            "start": 88,
+            "end": 90,
+            "score": 0.012920752633363008
+          }
+        ]
+      },
+      {
+        "position": 110,
+        "mod_type": "Gm",
+        "windows": [
+          {
+            "start": 108,
+            "end": 110,
+            "score": 2.679586172103882
+          },
+          {
+            "start": 88,
+            "end": 90,
+            "score": 0.026533737778663635
+          },
+          {
+            "start": 112,
+            "end": 114,
+            "score": 0.003834994276985526
+          }
+        ]
+      },
+      {
+        "position": 114,
+        "mod_type": "m5C",
+        "windows": [
+          {
+            "start": 112,
+            "end": 114,
+            "score": 2.4782143235206604
+          },
+          {
+            "start": 89,
+            "end": 91,
+            "score": 0.01249599689617753
+          },
+          {
+            "start": 97,
+            "end": 99,
+            "score": 0.008440151577815413
+          }
+        ]
+      },
+      {
+        "position": 115,
+        "mod_type": "m5C",
+        "windows": [
+          {
+            "start": 113,
+            "end": 115,
+            "score": 2.5891175866127014
+          },
+          {
+            "start": 117,
+            "end": 119,
+            "score": 0.009484680485911667
+          },
+          {
+            "start": 90,
+            "end": 92,
+            "score": 0.00874335365369916
+          }
+        ]
+      },
+      {
+        "position": 119,
+        "mod_type": "m5C",
+        "windows": [
+          {
+            "start": 117,
+            "end": 119,
+            "score": 2.492323637008667
+          },
+          {
+            "start": 97,
+            "end": 99,
+            "score": 0.03105620387941599
+          },
+          {
+            "start": 121,
+            "end": 123,
+            "score": 0.016923980205319822
+          }
+        ]
+      },
+      {
+        "position": 123,
+        "mod_type": "Um",
+        "windows": [
+          {
+            "start": 122,
+            "end": 124,
+            "score": 2.4830433130264282
+          },
+          {
+            "start": 98,
+            "end": 100,
+            "score": 0.010698175523430109
+          },
+          {
+            "start": 109,
+            "end": 111,
+            "score": 0.008448554668575525
+          }
+        ]
+      },
+      {
+        "position": 123,
+        "mod_type": "m5U",
+        "windows": [
+          {
+            "start": 122,
+            "end": 124,
+            "score": 2.4214790761470795
+          },
+          {
+            "start": 98,
+            "end": 100,
+            "score": 0.009726126212626696
+          },
+          {
+            "start": 110,
+            "end": 112,
+            "score": 0.003913659485988319
+          }
+        ]
+      },
+      {
+        "position": 123,
+        "mod_type": "Psi",
+        "windows": [
+          {
+            "start": 122,
+            "end": 124,
+            "score": 2.4369515776634216
+          },
+          {
+            "start": 98,
+            "end": 100,
+            "score": 0.014022912830114365
+          },
+          {
+            "start": 109,
+            "end": 111,
+            "score": 0.012325001880526543
+          }
+        ]
+      },
+      {
+        "position": 124,
+        "mod_type": "m5C",
+        "windows": [
+          {
+            "start": 123,
+            "end": 125,
+            "score": 2.446079045534134
+          },
+          {
+            "start": 119,
+            "end": 121,
+            "score": 0.008045098918955773
+          },
+          {
+            "start": 109,
+            "end": 111,
+            "score": 0.005091109545901418
+          }
+        ]
+      }
+    ]
+  }
+}

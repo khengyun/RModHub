@@ -1,0 +1,58 @@
+# Production override: HTTPS on 443 via Caddy (automatic Let's Encrypt certificates).
+#
+#   cp .env.example .env            # set RMODHUB_DOMAIN to the public DNS name
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Ports 80 and 443 (TCP + UDP for HTTP/3) must be reachable from the internet and the
+# domain's A/AAAA record must already point at this host, otherwise the ACME challenge
+# fails. With RMODHUB_DOMAIN=localhost (the default) Caddy issues a self-signed
+# certificate from its internal CA instead, which is handy for testing the full stack.
+#
+# Request path: browser -> Caddy (TLS) -> web (nginx: SPA + /api,/docs,... proxy) -> api.
+# Neither api nor web is published on the host any more; only Caddy talks to web over
+# the compose network, and only web talks to api.
+
+services:
+  api:
+    # Drop the host port mapping from docker-compose.yml (`!override` replaces instead
+    # of merging). The container still listens on 8000 inside the network.
+    ports: !override []
+    expose:
+      - "8000"
+
+  web:
+    # Same treatment: browsers reach nginx only through Caddy.
+    ports: !override []
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      RMODHUB_DOMAIN: ${RMODHUB_DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # ACME account + certificates (must persist!)
+      - caddy_config:/config
+    depends_on:
+      # web itself waits for api to be healthy (docker-compose.yml).
+      web:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # Caddy's admin API is bound to localhost inside the container.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  caddy_data:
+  caddy_config:

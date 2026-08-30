@@ -1,0 +1,19 @@
+{
+  "status": 422,
+  "body": {
+    "detail": "alpha: Input should be less than or equal to 1",
+    "errors": [
+      {
+        "type": "less_than_equal",
+        "loc": [
+          "body",
+          "alpha"
+        ],
+        "msg": "Input should be less than or equal to 1",
+        "ctx": {
+          "le": 1.0
+        }
+      }
+    ]
+  }
+}

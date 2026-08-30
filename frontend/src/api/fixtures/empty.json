@@ -1,0 +1,45 @@
+{
+  "request": {
+    "sequence": "GCGCCCTCCTGAAGTGCGTGGACACTCGCTATGAATCTCTGATTTACCCACTCTGCCAAA",
+    "alpha": 0.05,
+    "include_attention": true
+  },
+  "response": {
+    "results": [],
+    "meta": {
+      "sequence_length": 60,
+      "predicted_start": 26,
+      "predicted_end": 35,
+      "alpha": 0.05,
+      "n_sites": 0,
+      "model_name": "MultiRM",
+      "model_version": "trained_model_51seqs",
+      "inference_ms": 3.79,
+      "source": "sequence",
+      "transcript_id": null,
+      "mod_types": [
+        "Am",
+        "Cm",
+        "Gm",
+        "Um",
+        "m1A",
+        "m5C",
+        "m5U",
+        "m6A",
+        "m6Am",
+        "m7G",
+        "Psi",
+        "AtoI"
+      ],
+      "note": "MultiRM does not predict the first and last 25 nt of the input.",
+      "extra": {
+        "n_windows": 10,
+        "batch_size": 256,
+        "weights_sha256": "61f6d72aa1094ada4516bb68086d85c3d66cdac0d7deb3fd33905fa2339f608b",
+        "input_had_u": false,
+        "input_had_fasta_header": false
+      },
+      "attention": []
+    }
+  }
+}

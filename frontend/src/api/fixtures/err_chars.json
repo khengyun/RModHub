@@ -1,0 +1,6 @@
+{
+  "status": 422,
+  "body": {
+    "detail": "invalid character(s) in sequence: 'N', 'X' (allowed: A, C, G, U/T)"
+  }
+}
