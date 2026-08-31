@@ -6,7 +6,7 @@
  * `siteKey(site)` = "position:mod_type"; the same position can appear with several
  * modification types and those rows are never merged.
  */
-import { MOD_TYPES, siteKey, type ModSite, type PredictionMeta } from "../../api/types";
+import { isSignalSite, MOD_TYPES, siteKey, type ModSite, type PredictionMeta } from "../../api/types";
 import { formatP, formatProb } from "../../lib/format";
 import { modTypeInfo } from "../../lib/modTypes";
 
@@ -20,7 +20,11 @@ export type SortKey =
   | "probability"
   | "p_value"
   | "transcript_id"
-  | "coverage";
+  | "coverage"
+  // signal-branch extras (docs/signal-branch.md section 6)
+  | "strand"
+  | "count"
+  | "ci_low";
 export type ColumnId = "index" | SortKey;
 
 export interface ColumnDef {
@@ -34,9 +38,17 @@ export interface ColumnDef {
   format: (site: ModSite) => string;
   /**
    * When set, the column only appears if at least one row satisfies it. Used for the
-   * signal-branch columns (transcript, coverage) that are always null for the sequence branch.
+   * signal-branch columns (transcript, strand, coverage, count, CI) that are absent or
+   * null for the sequence branch, and for p-value, which the signal branch never has.
    */
   visibleWhen?: (sites: readonly ModSite[]) => boolean;
+}
+
+const anySignal = (sites: readonly ModSite[]) => sites.some(isSignalSite);
+
+/** "[0.12, 0.45]" for a signal row, "—" otherwise. */
+export function formatCi(site: ModSite): string {
+  return isSignalSite(site) ? `[${formatProb(site.ci_low)}, ${formatProb(site.ci_high)}]` : "—";
 }
 
 export const COLUMNS: readonly ColumnDef[] = [
@@ -66,6 +78,15 @@ export const COLUMNS: readonly ColumnDef[] = [
     format: (s) => String(s.position),
   },
   {
+    id: "strand",
+    label: "Strand",
+    title: "Strand of the region the site was called on (signal branch only)",
+    align: "left",
+    sortable: true,
+    format: (s) => (isSignalSite(s) ? s.strand : "—"),
+    visibleWhen: anySignal,
+  },
+  {
     id: "mod_type",
     label: "Modification",
     title: "Predicted modification type (sorted in the model's canonical order)",
@@ -76,10 +97,20 @@ export const COLUMNS: readonly ColumnDef[] = [
   {
     id: "probability",
     label: "Probability",
-    title: "Model probability that the site carries this modification",
+    title:
+      "Sequence branch: model probability that the site carries this modification. Signal branch: modification rate = modified reads / coverage",
     align: "right",
     sortable: true,
     format: (s) => formatProb(s.probability),
+  },
+  {
+    id: "ci_low",
+    label: "95% CI",
+    title: "95 % Wilson score interval of the modification rate (signal branch only); sorted by its lower bound",
+    align: "right",
+    sortable: true,
+    format: formatCi,
+    visibleWhen: anySignal,
   },
   {
     id: "p_value",
@@ -88,6 +119,7 @@ export const COLUMNS: readonly ColumnDef[] = [
     align: "right",
     sortable: true,
     format: (s) => formatP(s.p_value),
+    visibleWhen: (sites) => sites.length === 0 || sites.some((s) => s.p_value !== null),
   },
   {
     id: "coverage",
@@ -97,6 +129,15 @@ export const COLUMNS: readonly ColumnDef[] = [
     sortable: true,
     format: (s) => (s.coverage === null ? "—" : String(s.coverage)),
     visibleWhen: (sites) => sites.some((s) => s.coverage !== null),
+  },
+  {
+    id: "count",
+    label: "Modified reads",
+    title: "Reads with a per-read probability above 0.5 at this site (signal branch only)",
+    align: "right",
+    sortable: true,
+    format: (s) => (isSignalSite(s) ? String(s.count) : "—"),
+    visibleWhen: anySignal,
   },
 ];
 
@@ -137,6 +178,12 @@ function sortValue(site: ModSite, key: SortKey): number | string | null {
       return site.transcript_id;
     case "coverage":
       return site.coverage;
+    case "strand":
+      return isSignalSite(site) ? site.strand : null;
+    case "count":
+      return isSignalSite(site) ? site.count : null;
+    case "ci_low":
+      return isSignalSite(site) ? site.ci_low : null;
   }
 }
 
@@ -206,6 +253,20 @@ export function allModTypes(sites: readonly ModSite[]): string[] {
   return [...MOD_TYPES, ...[...extra].sort((a, b) => a.localeCompare(b, "en"))];
 }
 
+/**
+ * Chips of the filter toolbar: the types the model can call (`meta.mod_types` for the
+ * signal branch, where DirectRM knows six; the 12 canonical types for the sequence branch)
+ * plus any other type present in the rows, in canonical order (unknown types last, by name).
+ */
+export function chipModTypes(meta: Pick<PredictionMeta, "source" | "mod_types">, sites: readonly ModSite[]): string[] {
+  if (meta.source !== "signal" || !Array.isArray(meta.mod_types) || meta.mod_types.length === 0) {
+    return allModTypes(sites);
+  }
+  const set = new Set<string>(meta.mod_types);
+  for (const s of sites) set.add(s.mod_type);
+  return [...set].sort((a, b) => modTypeRank(a) - modTypeRank(b) || a.localeCompare(b, "en"));
+}
+
 /** Number of rows per modification type (over the unfiltered rows). */
 export function modTypeCounts(sites: readonly ModSite[]): Map<string, number> {
   const counts = new Map<string, number>();
@@ -215,7 +276,7 @@ export function modTypeCounts(sites: readonly ModSite[]): Map<string, number> {
 
 export function defaultFilterInputs(meta: PredictionMeta, sites: readonly ModSite[]): FilterInputs {
   return {
-    modTypes: new Set(allModTypes(sites)),
+    modTypes: new Set(chipModTypes(meta, sites)),
     pMax: String(meta.alpha),
     probMin: "0",
     posMin: String(meta.predicted_start),
@@ -333,17 +394,35 @@ function csvCell(value: string | number | null): string {
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-/** Client-side CSV (used for "Download visible rows"). Ends with a newline. */
+/** Extra columns of the signal branch's site CSV, after the shared seven (same order as the server). */
+export const SIGNAL_CSV_EXTRA = ["strand", "count", "ci_low", "ci_high", "max_prob", "noisyor_prob"] as const;
+
+/**
+ * Client-side CSV (used for "Download visible rows"). Ends with a newline. When any row
+ * carries the signal-branch extras, the header gains the server's extra columns.
+ */
 export function toCsv(rows: readonly ModSite[]): string {
-  const lines = [CSV_HEADER.join(",")];
+  const signal = anySignal(rows);
+  const lines = [[...CSV_HEADER, ...(signal ? SIGNAL_CSV_EXTRA : [])].join(",")];
   for (const r of rows) {
-    lines.push(
-      [r.transcript_id, r.position, r.mod_type, r.probability, r.p_value, r.coverage, r.source]
-        .map(csvCell)
-        .join(","),
-    );
+    const cells: (string | number | null)[] = [
+      r.transcript_id, r.position, r.mod_type, r.probability, r.p_value, r.coverage, r.source,
+    ];
+    if (signal) {
+      cells.push(
+        ...(isSignalSite(r)
+          ? [r.strand, r.count, r.ci_low, r.ci_high, r.max_prob, r.noisyor_prob]
+          : [null, null, null, null, null, null]),
+      );
+    }
+    lines.push(cells.map(csvCell).join(","));
   }
   return lines.join("\n") + "\n";
+}
+
+/** Insert `_suffix` before the .csv extension: "a.csv" -> "a_filtered.csv". */
+export function withCsvSuffix(filename: string, suffix: string): string {
+  return filename.replace(/\.csv$/i, "") + `_${suffix}.csv`;
 }
 
 /** `rmodhub_sites_{transcript_id|'sequence'}_{sequence_length}nt[_suffix].csv` */

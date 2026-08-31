@@ -1,21 +1,22 @@
 /**
  * Results table for the shared `ModSite` rows: filter toolbar, sortable columns,
  * pagination (only the current page is in the DOM), row selection shared with the track
- * view, and CSV download (server `?format=csv` for all rows, client-side for the filtered
- * rows). All pure logic lives in ./resultsModel.ts.
+ * view, and CSV download (server CSV for all rows via the injected `csv.download`,
+ * client-side for the filtered rows). All pure logic lives in ./resultsModel.ts.
  *
- * The props are the contract with SequencePage (and the future signal-branch result page).
+ * The props are the contract with SequencePage and ResultPage (signal branch). Columns
+ * are data-driven: signal rows (strand, count, CI, coverage) add their columns by
+ * themselves, see `COLUMNS[].visibleWhen`.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { describeError, predictSequenceCsv } from "../../api/client";
-import { siteKey, type ModSite, type PredictionMeta, type PredictRequest } from "../../api/types";
+import { describeError } from "../../api/client";
+import { siteKey, type ModSite, type PredictionMeta } from "../../api/types";
 import { downloadBlob, downloadText } from "../../lib/download";
 import { ModTypeBadge } from "./ModTypeBadge";
 import { ResultsPagination } from "./ResultsPagination";
 import { ResultsToolbar } from "./ResultsToolbar";
 import {
-  allModTypes,
-  csvFilename,
+  chipModTypes,
   DEFAULT_PAGE_SIZE,
   DEFAULT_SORT,
   defaultFilterInputs,
@@ -27,18 +28,30 @@ import {
   toCsv,
   toFilters,
   visibleColumns,
+  withCsvSuffix,
   type ColumnDef,
   type FilterInputs,
   type SortKey,
   type SortState,
 } from "./resultsModel";
 
+/** Where the "all rows" CSV comes from and what to call the file. */
+export interface CsvSource {
+  download: (signal?: AbortSignal) => Promise<Blob>;
+  filename: string;
+  /**
+   * Rows in that CSV when it is larger than `sites` (signal branch: the table shows one
+   * transcript, the server CSV has every transcript of the job). Defaults to `sites.length`.
+   */
+  totalRows?: number;
+}
+
 export interface ResultsTableProps {
   /** All rows returned by the API (unfiltered). */
   sites: ModSite[];
   meta: PredictionMeta;
-  /** Exact request body that produced `sites`; reuse it for `?format=csv`. */
-  request: PredictRequest;
+  /** Server-side CSV of all rows (sequence: POST ?format=csv; signal: GET download.csv). */
+  csv: CsvSource;
   /** Shared selection with the track view: siteKey(site) or null. */
   selectedKey: string | null;
   onSelect: (key: string | null) => void;
@@ -46,7 +59,7 @@ export interface ResultsTableProps {
   onVisibleChange?: (visible: ModSite[]) => void;
 }
 
-export function ResultsTable({ sites, meta, request, selectedKey, onSelect, onVisibleChange }: ResultsTableProps) {
+export function ResultsTable({ sites, meta, csv, selectedKey, onSelect, onVisibleChange }: ResultsTableProps) {
   const [inputs, setInputs] = useState<FilterInputs>(() => defaultFilterInputs(meta, sites));
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
@@ -76,7 +89,7 @@ export function ResultsTable({ sites, meta, request, selectedKey, onSelect, onVi
   const filtered = useMemo(() => filterSites(sites, filters), [sites, filters]);
   const sorted = useMemo(() => sortSites(filtered, sort), [filtered, sort]);
   const columns = useMemo(() => visibleColumns(sites), [sites]);
-  const modTypes = useMemo(() => allModTypes(sites), [sites]);
+  const modTypes = useMemo(() => chipModTypes(meta, sites), [meta, sites]);
   const counts = useMemo(() => modTypeCounts(sites), [sites]);
   const pageData = paginate(sorted, page, pageSize);
 
@@ -131,15 +144,17 @@ export function ResultsTable({ sites, meta, request, selectedKey, onSelect, onVi
     setCsvBusy(true);
     setCsvError(null);
     try {
-      const blob = await predictSequenceCsv(request);
-      downloadBlob(blob, csvFilename(meta));
+      const blob = await csv.download();
+      downloadBlob(blob, csv.filename);
     } catch (err) {
       setCsvError(describeError(err));
     } finally {
       setCsvBusy(false);
     }
   };
-  const downloadVisibleCsv = () => downloadText(toCsv(sorted), csvFilename(meta, "filtered"), "text/csv");
+  const downloadVisibleCsv = () => downloadText(toCsv(sorted), withCsvSuffix(csv.filename, "filtered"), "text/csv");
+  const csvRows = csv.totalRows ?? sites.length;
+  const csvSpansJob = meta.source === "signal" && csvRows !== sites.length;
 
   return (
     <section data-testid="results-table-section" className="space-y-3">
@@ -174,7 +189,7 @@ export function ResultsTable({ sites, meta, request, selectedKey, onSelect, onVi
               ) : (
                 <DownloadIcon />
               )}
-              {csvBusy ? "Preparing CSV…" : `Download CSV (all ${sites.length} sites)`}
+              {csvBusy ? "Preparing CSV…" : `Download CSV (all ${csvRows} sites)`}
             </button>
             <button
               type="button"
@@ -187,8 +202,10 @@ export function ResultsTable({ sites, meta, request, selectedKey, onSelect, onVi
               Download visible rows ({sorted.length})
             </button>
           </div>
-          <p className="text-xs text-slate-500">
-            The server CSV contains all {sites.length} sites regardless of the table filters.
+          <p data-testid="download-csv-note" className="text-xs text-slate-500">
+            {csvSpansJob
+              ? `The server CSV contains all ${csvRows} sites of every transcript in this job, regardless of the transcript shown and the table filters; "visible rows" is the filtered table of this transcript only.`
+              : `The server CSV contains all ${csvRows} sites regardless of the table filters.`}
           </p>
           {csvError && (
             <p data-testid="download-csv-error" role="alert" className="text-xs text-red-700">

@@ -11,6 +11,8 @@
 /** Keep in sync with package.json "version". */
 export const APP_VERSION = "0.1.0";
 
+/* ---------- MultiRM (sequence branch) ---------- */
+
 export const MULTIRM_REPO_URL = "https://github.com/Tsedao/MultiRM";
 /** Verified against the CrossRef DOI registry: Nat Commun 12, 4011 (2021). */
 export const PAPER_DOI = "10.1038/s41467-021-24313-3";
@@ -47,3 +49,50 @@ export const CITATION_TEXT =
   CITATION.year +
   "). " +
   PAPER_URL;
+
+/* ---------- DirectRM (nanopore signal branch) ---------- */
+
+export const DIRECTRM_MODEL_NAME = "DirectRM";
+export const DIRECTRM_REPO_URL = "https://github.com/yuxinPenny/DirectRM";
+/** Vendored commit (docs/signal-branch.md section 2). */
+export const DIRECTRM_COMMIT = "bc7a085";
+export const DIRECTRM_COPYRIGHT = "© 2025 Yuxin Zhang";
+export const DIRECTRM_PAPER_DOI = "10.1038/s41467-025-64495-8";
+export const DIRECTRM_PAPER_URL = "https://doi.org/10.1038/s41467-025-64495-8";
+
+export const DIRECTRM_CITATION = {
+  authors: "Zhang Y, Wu Y, Ma J, et al.",
+  title:
+    "DirectRM: integrated detection of landscape and crosstalk between multiple RNA modifications using direct RNA sequencing",
+  journal: "Nature Communications",
+  volume: "16",
+  article: "9450",
+  year: "2025",
+  doi: DIRECTRM_PAPER_DOI,
+} as const;
+
+export const DIRECTRM_CITATION_TEXT =
+  DIRECTRM_CITATION.authors +
+  " " +
+  DIRECTRM_CITATION.title +
+  ". " +
+  DIRECTRM_CITATION.journal +
+  " " +
+  DIRECTRM_CITATION.volume +
+  ", " +
+  DIRECTRM_CITATION.article +
+  " (" +
+  DIRECTRM_CITATION.year +
+  "). " +
+  DIRECTRM_PAPER_URL;
+
+/** Third-party components bundled with the signal worker, disclosed on the landing page. */
+export const DIRECTRM_THIRD_PARTY = [
+  { name: "DirectRM", license: "MIT License", holder: DIRECTRM_COPYRIGHT },
+  { name: "ONT k-mer level tables (kmer_models)", license: "MPL-2.0", holder: "Oxford Nanopore Technologies" },
+  {
+    name: "Remora",
+    license: "Oxford Nanopore Technologies Public License 1.0 (research use only)",
+    holder: "Oxford Nanopore Technologies",
+  },
+] as const;

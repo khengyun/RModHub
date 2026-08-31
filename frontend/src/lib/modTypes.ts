@@ -1,12 +1,13 @@
 /**
- * The 12 modification types MultiRM predicts, in the backend's canonical order, with a
- * distinct colour (shared by the table badges and the track view glyphs) and a one-line
- * description (used by the Help page and tooltips).
+ * Modification-type metadata: the 12 types MultiRM predicts (frozen `MOD_TYPES`, in the
+ * backend's canonical order) plus the extra types other models emit (DirectRM: ac4C).
+ * Each entry has a distinct colour (shared by the table badges and the track view glyphs)
+ * and a one-line description (used by the Help page and tooltips).
  */
 import { MOD_TYPES, type ModType } from "../api/types";
 
-export interface ModTypeInfo {
-  id: ModType;
+export interface ModTypeInfo<Id extends string = string> {
+  id: Id;
   label: string;
   /** Which nucleotide carries the modification (used to sanity-check positions). */
   base: "A" | "C" | "G" | "U";
@@ -14,7 +15,7 @@ export interface ModTypeInfo {
   description: string;
 }
 
-export const MOD_TYPE_INFO: Record<ModType, ModTypeInfo> = {
+export const MOD_TYPE_INFO: Record<ModType, ModTypeInfo<ModType>> = {
   Am:   { id: "Am",   label: "Am",   base: "A", color: "#1f77b4", description: "2'-O-methyladenosine: methyl group on the ribose 2'-OH of an A; affects RNA structure and immune recognition." },
   Cm:   { id: "Cm",   label: "Cm",   base: "C", color: "#ff7f0e", description: "2'-O-methylcytidine: ribose 2'-O-methylation of a C, common in rRNA, tRNA and mRNA caps." },
   Gm:   { id: "Gm",   label: "Gm",   base: "G", color: "#2ca02c", description: "2'-O-methylguanosine: ribose 2'-O-methylation of a G." },
@@ -29,12 +30,32 @@ export const MOD_TYPE_INFO: Record<ModType, ModTypeInfo> = {
   AtoI: { id: "AtoI", label: "A-to-I", base: "A", color: "#1b9e77", description: "Adenosine-to-inosine editing by ADAR enzymes; inosine is read as G, so it can recode codons and alter splicing." },
 };
 
-export const MOD_TYPE_LIST: ModTypeInfo[] = MOD_TYPES.map((id) => MOD_TYPE_INFO[id]);
+/**
+ * Types outside the frozen 12 that a bundled model can report. DirectRM's `psi` is
+ * normalised to `Psi` by the backend, so only ac4C is genuinely new. Its colour is a deep
+ * magenta not used by any of the 12 above.
+ */
+export const EXTRA_MOD_TYPE_INFO: Record<string, ModTypeInfo> = {
+  ac4C: {
+    id: "ac4C",
+    label: "ac4C",
+    base: "C",
+    color: "#a0177b",
+    description:
+      "N4-acetylcytidine: acetyl group on the N4 of cytidine (NAT10 writer); found in rRNA, tRNA and mRNA, where it promotes translation efficiency and stability.",
+  },
+};
+
+export const MOD_TYPE_LIST: ModTypeInfo<ModType>[] = MOD_TYPES.map((id) => MOD_TYPE_INFO[id]);
+
+/** The six types DirectRM calls, in the order the signal API reports `meta.mod_types`. */
+export const SIGNAL_MOD_TYPES = ["ac4C", "m1A", "m5C", "m6A", "m7G", "Psi"] as const;
 
 export function modTypeInfo(id: string): ModTypeInfo {
   return (
-    MOD_TYPE_INFO[id as ModType] ?? {
-      id: id as ModType,
+    (MOD_TYPE_INFO as Record<string, ModTypeInfo | undefined>)[id] ??
+    EXTRA_MOD_TYPE_INFO[id] ?? {
+      id,
       label: id,
       base: "A",
       color: "#334155",

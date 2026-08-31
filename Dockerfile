@@ -57,7 +57,7 @@ RUN /app/.venv/bin/python -m compileall -q /app/app
 FROM python:${PYTHON_VERSION}-slim AS runtime
 
 LABEL org.opencontainers.image.title="RModHub" \
-      org.opencontainers.image.description="RNA modification site prediction web server (MultiRM sequence branch; DirectRM signal branch planned)" \
+      org.opencontainers.image.description="RNA modification site prediction web server (MultiRM sequence branch; DirectRM nanopore signal branch job API)" \
       org.opencontainers.image.source="https://github.com/rmodhub/RModHub" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="RModHub"
@@ -74,6 +74,7 @@ WORKDIR /app
 # Code and venv are owned by root and therefore read-only for the `app` user.
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/app /app/app
+COPY deploy/api-entrypoint.py /app/entrypoint.py
 
 # OMP_NUM_THREADS / MKL_NUM_THREADS = 1 is the *container default* for torch intra-op
 # parallelism: inference runs in FastAPI's threadpool, so one torch thread per request
@@ -98,8 +99,16 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status==200 else 1)"]
 
+# The entrypoint (deploy/api-entrypoint.py) sets FORWARDED_ALLOW_IPS, the list of proxies
+# uvicorn's --proxy-headers may believe about X-Forwarded-For/-Proto, to the container's
+# own network(s) -- i.e. the compose network where nginx (`web`) and Caddy live -- and
+# refuses to start the signal branch with the development RMODHUB_IP_HASH_SECRET. It
+# then execs CMD. Never `--forwarded-allow-ips=*`: uvicorn would take the *first*
+# X-Forwarded-For entry, which is whatever the client wrote, and the per-address job
+# quota could be bypassed by picking a new address per request. Override with
+# RMODHUB_TRUSTED_PROXIES (comma-separated IPs/CIDRs) when the proxy is elsewhere.
+ENTRYPOINT ["python", "/app/entrypoint.py"]
+
 # Exactly ONE worker: every uvicorn worker would load its own copy of the model
 # (~300-500 MB RSS each). Scale horizontally with container replicas instead.
-# --proxy-headers/--forwarded-allow-ips trust X-Forwarded-* from the reverse proxy
-# (Caddy in docker-compose.prod.yml) so generated URLs use https.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips=*"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers"]

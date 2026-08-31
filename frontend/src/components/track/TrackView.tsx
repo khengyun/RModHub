@@ -6,13 +6,16 @@
  * ruler with nice ticks, nucleotide letters (only when <= LETTERS_MAX_SPAN nt are visible),
  * the 51-nt window bracket of the active site, then one lane per modification type.
  *
- * Encoding: glyph colour = modification type, glyph height = model probability.
+ * Encoding: glyph colour = modification type, glyph height = model probability (sequence
+ * branch) or modification rate (signal branch).
  * Zoom: Ctrl/Cmd + wheel (or pinch) around the cursor, +/- buttons, click a density bin;
  * pan: drag, Shift + wheel, horizontal wheel, arrow keys. Plain wheel scrolls the page.
  * Density: below BIN_MIN_PX_PER_NT px per nucleotide, sites are aggregated per lane into
  * BIN_PX-wide bins (click a bin to zoom in). Only glyphs inside the viewport are rendered.
  *
- * The props are the contract with SequencePage (and the future signal-branch result page).
+ * The props are the contract with SequencePage and ResultPage (signal branch). The signal
+ * page passes `windowHalf={null}` (no 51-nt window bracket, no flank tooltip) and a meta
+ * whose scored range covers the whole transcript, so no hatched flanks are drawn.
  */
 import {
   useCallback,
@@ -29,6 +32,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  isSignalSite,
   siteKey,
   type ModSite,
   type PredictionMeta,
@@ -80,6 +84,12 @@ export interface TrackViewProps {
   attentionByKey: Map<string, SiteAttention>;
   selectedKey: string | null;
   onSelect: (key: string | null) => void;
+  /**
+   * Half-width of the model's scoring window around the active site (MultiRM: 25 -> the
+   * "51-nt window" bracket). `null` hides the bracket and the flank explanation, for
+   * models that score each base from its own reads (signal branch).
+   */
+  windowHalf?: number | null;
 }
 
 /* ---------- vertical layout (px) ---------- */
@@ -114,8 +124,10 @@ export function TrackView({
   attentionByKey,
   selectedKey,
   onSelect,
+  windowHalf = WINDOW_HALF,
 }: TrackViewProps) {
   const n = meta.sequence_length;
+  const signalMode = meta.source === "signal";
   const wrapperRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const hatchId = useId();
@@ -244,11 +256,19 @@ export function TrackView({
             <b>{info.label}</b> at position{" "}
             <b>{site.position.toLocaleString("en-US")}</b>
           </div>
-          <div>
-            probability {formatProb(site.probability)} · p-value{" "}
-            {formatP(site.p_value)}
-            {site.coverage !== null ? ` · coverage ${site.coverage}` : ""}
-          </div>
+          {isSignalSite(site) ? (
+            <div>
+              rate {formatProb(site.probability)} · 95% CI [{formatProb(site.ci_low)},{" "}
+              {formatProb(site.ci_high)}] · coverage {site.coverage} · modified reads{" "}
+              {site.count}
+            </div>
+          ) : (
+            <div>
+              probability {formatProb(site.probability)} · p-value{" "}
+              {formatP(site.p_value)}
+              {site.coverage !== null ? ` · coverage ${site.coverage}` : ""}
+            </div>
+          )}
           <div>
             nucleotide: <span className="font-mono">{letter ?? "n/a"}</span>
             {letter ? ` (target base of ${info.label}: ${info.base})` : ""}
@@ -282,12 +302,17 @@ export function TrackView({
     </div>
   );
 
-  const flankTooltip = (
-    <div className="max-w-xs">
-      <b>Not scored.</b> MultiRM scores the centre of a 51-nt window, so the
-      first and last {WINDOW_HALF} nt of the input cannot receive a prediction.
-    </div>
-  );
+  const flankTooltip =
+    windowHalf === null ? (
+      <div className="max-w-xs">
+        <b>Not scored.</b> No region covered this part of the transcript.
+      </div>
+    ) : (
+      <div className="max-w-xs">
+        <b>Not scored.</b> MultiRM scores the centre of a {2 * windowHalf + 1}-nt window, so
+        the first and last {windowHalf} nt of the input cannot receive a prediction.
+      </div>
+    );
 
   /* ----- glyph events (delegated on the lanes group) ----- */
   const dragRef = useRef<{
@@ -866,21 +891,23 @@ export function TrackView({
               </g>
             )}
 
-            {/* 51-nt window bracket + position guide of the active site */}
+            {/* scoring-window bracket (when the model has one) + position guide of the active site */}
             {activePosition !== null && (
               <g
                 data-testid="track-window"
+                data-bracket={windowHalf === null ? "false" : "true"}
                 pointerEvents="none"
                 clipPath={clip}
               >
                 {(() => {
-                  const bx0 = clipX(activePosition - WINDOW_HALF - 0.5);
-                  const bx1 = clipX(activePosition + WINDOW_HALF + 0.5);
+                  const half = windowHalf ?? 0;
+                  const bx0 = clipX(activePosition - half - 0.5);
+                  const bx1 = clipX(activePosition + half + 0.5);
                   const cx = scale.toPx(activePosition);
                   const inView = cx >= x0 && cx <= x1;
                   return (
                     <>
-                      {bx1 > bx0 && (
+                      {windowHalf !== null && bx1 > bx0 && (
                         <path
                           d={`M${bx0},${BRACKET_Y + 8} V${BRACKET_Y + 2} H${bx1} V${BRACKET_Y + 8}`}
                           fill="none"
@@ -888,7 +915,7 @@ export function TrackView({
                           strokeWidth={1}
                         />
                       )}
-                      {bx1 - bx0 > 70 && (
+                      {windowHalf !== null && bx1 - bx0 > 70 && (
                         <text
                           x={(bx0 + bx1) / 2}
                           y={BRACKET_Y + 9}
@@ -896,7 +923,7 @@ export function TrackView({
                           fontSize={9}
                           fill="#334155"
                         >
-                          51-nt window
+                          {2 * windowHalf + 1}-nt window
                         </text>
                       )}
                       {inView && (
@@ -986,7 +1013,11 @@ export function TrackView({
                           data-selected={selected ? "true" : "false"}
                           role="button"
                           tabIndex={0}
-                          aria-label={`${info.label} at position ${site.position}, probability ${formatProb(site.probability)}, p-value ${formatP(site.p_value)}`}
+                          aria-label={
+                            isSignalSite(site)
+                              ? `${info.label} at position ${site.position}, rate ${formatProb(site.probability)}, coverage ${site.coverage}`
+                              : `${info.label} at position ${site.position}, probability ${formatProb(site.probability)}, p-value ${formatP(site.p_value)}`
+                          }
                           aria-pressed={selected}
                           x={cx - gw / 2}
                           y={y + LANE_H - 2 - h}
@@ -1053,18 +1084,33 @@ export function TrackView({
         data-testid="track-legend"
         className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-4 text-slate-500"
       >
-        Colour = modification type; glyph height = model probability (taller =
-        more confident); one lane per type, so sites at the same position stay
-        distinct.{" "}
-        {attentionByKey.size > 0
-          ? "Highlighted = regions the model attended to most when scoring this site (top 3); the bracket marks its 51-nt scoring window."
-          : "Attention windows were not requested for this run."}{" "}
-        Hatched ends = not scored (first/last {WINDOW_HALF} nt). Ctrl/⌘ + wheel
-        or +/− zooms, drag or Shift + wheel pans, click a site to select it
-        (Enter/Space with the keyboard); letters appear below the ruler when ≤{" "}
-        {LETTERS_MAX_SPAN} nt are visible (T shown as U). When fewer than 1 px
-        per nucleotide is available, sites are merged into {BIN_PX}-px density
-        bins — click a bin to zoom in.
+        {signalMode ? (
+          <>
+            Colour = modification type; glyph height = modification rate (fraction of reads
+            called modified at that base; taller = higher rate); one lane per type, so sites
+            at the same position stay distinct. Hover a site for its rate, 95 % confidence
+            interval, coverage and modified-read count.{" "}
+          </>
+        ) : (
+          <>
+            Colour = modification type; glyph height = model probability (taller = more
+            confident); one lane per type, so sites at the same position stay distinct.{" "}
+            {attentionByKey.size > 0
+              ? `Highlighted = regions the model attended to most when scoring this site (top 3); the bracket marks its ${2 * (windowHalf ?? WINDOW_HALF) + 1}-nt scoring window.`
+              : "Attention windows were not requested for this run."}{" "}
+            Hatched ends = not scored (first/last {windowHalf ?? WINDOW_HALF} nt).{" "}
+          </>
+        )}
+        Ctrl/⌘ + wheel or +/− zooms, drag or Shift + wheel pans, click a site to select it
+        (Enter/Space with the keyboard)
+        {sequence !== null ? (
+          <>
+            ; letters appear below the ruler when ≤ {LETTERS_MAX_SPAN} nt are visible (T shown
+            as U)
+          </>
+        ) : null}
+        . When fewer than 1 px per nucleotide is available, sites are merged into {BIN_PX}-px
+        density bins — click a bin to zoom in.
       </p>
     </div>
   );

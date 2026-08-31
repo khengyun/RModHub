@@ -1,0 +1,133 @@
+[project]
+name = "rmodhub-worker"
+version = "0.1.0"
+description = "RModHub nanopore signal worker: runs the vendored DirectRM pipeline (Remora + torch CPU) as a Celery task"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+license = { text = "MIT" }
+# Python 3.10 is the lowest interpreter with a lib-pod5 >= 0.3.46 wheel, i.e. the lowest that
+# can open POD5 v6 files (written by pod5 >= 0.3.46 = current MinKNOW / dorado / pod5 CLI).
+# Every pin below except pod5/lib-pod5 is the set that was first resolved and validated for
+# CPython 3.9 (golden fixture); the transitive set is held at the same versions through
+# [tool.uv].constraint-dependencies so that only the interpreter and the pod5 reader changed.
+# ont-remora 3.2.0 is sdist-only (Cython, needs gcc); torch 2.8.0+cpu comes from the CPU index.
+dependencies = [
+    "ont-remora==3.2.0",
+    "pod5==0.3.47",
+    "lib-pod5==0.3.47",
+    "pysam==0.24.0",
+    "polars==1.36.1",
+    "pandas==2.3.3",
+    "numpy==2.0.2",
+    "torch==2.8.0",
+    "torcheval==0.0.7",
+    "tqdm==4.70.0",
+    "celery[redis]==5.6.3",
+    "psycopg[binary]==3.2.13",
+]
+
+[project.optional-dependencies]
+# Not needed by the worker itself (wilson.py is pure Python); kept as an opt-in extra for ad-hoc
+# statistics in the container. Remora already pulls scipy in transitively.
+scipy = ["scipy==1.13.1"]
+
+[dependency-groups]
+dev = ["pytest>=8.2"]
+
+# The worker is run from its directory (`python -m rmodhub_worker...`, `celery -A ...`) like the
+# API package at the repository root; it is not built or installed as a distribution.
+[tool.uv]
+package = false
+# Transitive packages frozen at the versions of the original (Python 3.9) resolution so that the
+# move to 3.10 changed nothing but the interpreter and pod5/lib-pod5. Constraints only apply to
+# packages that are required anyway; pyarrow is the one forced upgrade (pod5 0.3.47 requires
+# pyarrow~=22.0 on Python >= 3.10, ~=18.0 on 3.9) and only reads the POD5 container.
+constraint-dependencies = [
+    "amqp==5.3.1",
+    "async-timeout==5.0.1",
+    "billiard==4.2.4",
+    "certifi==2026.7.22",
+    "charset-normalizer==3.5.1",
+    "click==8.1.8",
+    "click-didyoumean==0.3.1",
+    "click-plugins==1.1.1.2",
+    "click-repl==0.3.0",
+    "contourpy==1.3.0",
+    "cycler==0.12.1",
+    "deprecated==1.2.18",
+    "exceptiongroup==1.3.1",
+    "filelock==3.19.1",
+    "fonttools==4.60.2",
+    "fsspec==2025.10.0",
+    "h5py==3.14.0",
+    "idna==3.19",
+    "importlib-resources==6.5.2",
+    "iso8601==2.1.0",
+    "jinja2==3.1.6",
+    "joblib==1.5.3",
+    "kiwisolver==1.4.7",
+    "kombu==5.6.2",
+    "markupsafe==3.0.3",
+    "matplotlib==3.9.4",
+    "mizani==0.9.3",
+    "more-itertools==10.8.0",
+    "mpmath==1.3.0",
+    "networkx==3.2.1",
+    "packaging==26.3",
+    "parasail==1.3.4",
+    "patsy==1.0.3",
+    "pillow==11.3.0",
+    "plotnine==0.12.4",
+    "prompt-toolkit==3.0.52",
+    "psycopg-binary==3.2.13",
+    "pyarrow==22.0.0",
+    "pyparsing==3.3.2",
+    "python-dateutil==2.9.0.post0",
+    "pytz==2026.3.post1",
+    "redis==6.4.0",
+    "requests==2.32.5",
+    "scikit-learn==1.6.1",
+    "scipy==1.13.1",
+    "six==1.17.0",
+    "statsmodels==0.14.6",
+    "sympy==1.14.0",
+    "thop==0.1.1.post2209072238",
+    "threadpoolctl==3.6.0",
+    "toml==0.10.2",
+    "typing-extensions==4.16.0",
+    "tzdata==2026.3",
+    "tzlocal==5.3.1",
+    "urllib3==2.6.3",
+    "vbz-h5py-plugin==1.0.1",
+    "vine==5.1.0",
+    "wcwidth==0.8.3",
+    "wrapt==1.17.3",
+    "zipp==3.23.1",
+]
+
+# CPU-only torch wheels: the default PyPI build pulls multi-GB CUDA libs that are useless here.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+markers = ["slow: runs the full DirectRM pipeline on the synthetic sample (about a minute)"]
+filterwarnings = [
+    "ignore::DeprecationWarning:pod5",
+    "ignore::DeprecationWarning:pkg_resources",
+]
+
+# Nearest-config resolution makes these settings apply to worker/** even when ruff is run from
+# the repository root (whose target is py312). directrm_vendor is upstream code kept byte-identical
+# to DirectRM and must never be linted or reformatted.
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["directrm_vendor"]

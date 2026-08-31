@@ -2,6 +2,7 @@
 #
 #   cp .env.example .env            # set RMODHUB_DOMAIN to the public DNS name
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   (add `--profile phase2` and set POSTGRES_PASSWORD in .env for the nanopore signal branch)
 #
 # Ports 80 and 443 (TCP + UDP for HTTP/3) must be reachable from the internet and the
 # domain's A/AAAA record must already point at this host, otherwise the ACME challenge
@@ -35,6 +36,9 @@ services:
       - "443:443/udp"
     environment:
       RMODHUB_DOMAIN: ${RMODHUB_DOMAIN:-localhost}
+      # Outer body bound of the one-shot multipart route (deploy/Caddyfile); keep it above
+      # RMODHUB_MAX_POD5_GB + RMODHUB_MAX_BAM_GB + RMODHUB_MAX_REFERENCE_MB (+ ~80 MiB).
+      RMODHUB_MULTIPART_MAX_SIZE: ${RMODHUB_MULTIPART_MAX_SIZE:-11GiB}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data        # ACME account + certificates (must persist!)

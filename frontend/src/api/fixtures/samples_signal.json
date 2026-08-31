@@ -1,0 +1,55 @@
+{
+  "name": "synthetic_rna004_3tx",
+  "description": "Synthetic RNA004-like reads on 3 transcripts (tx_A 40 reads, tx_B 36 reads, tx_C 12 reads: below the 30-read threshold).",
+  "kit": "RNA004",
+  "source": "synthetic",
+  "files": [
+    {
+      "slot": "pod5",
+      "filename": "sample.pod5",
+      "bytes": 838860,
+      "url": "/api/samples/signal/files/sample.pod5"
+    },
+    {
+      "slot": "bam",
+      "filename": "sample_sorted.bam",
+      "bytes": 54272,
+      "url": "/api/samples/signal/files/sample_sorted.bam"
+    },
+    {
+      "slot": "reference",
+      "filename": "reference.fa",
+      "bytes": 4096,
+      "url": "/api/samples/signal/files/reference.fa"
+    },
+    {
+      "slot": "regions",
+      "filename": "regions.csv",
+      "bytes": 96,
+      "url": "/api/samples/signal/files/regions.csv"
+    }
+  ],
+  "regions": [
+    {
+      "seqnames": "tx_A",
+      "start": 1,
+      "end": 1200,
+      "width": 1200,
+      "strand": "+"
+    },
+    {
+      "seqnames": "tx_B",
+      "start": 1,
+      "end": 900,
+      "width": 900,
+      "strand": "+"
+    },
+    {
+      "seqnames": "tx_C",
+      "start": 1,
+      "end": 600,
+      "width": 600,
+      "strand": "+"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
  * empty result) and the shared row selection between the table and the track view.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { describeError, getSample, predictSequence } from "../api/client";
+import { describeError, getSample, predictSequence, predictSequenceCsv } from "../api/client";
 import {
   siteKey,
   type ModSite,
@@ -12,7 +12,8 @@ import {
   type PredictResponse,
   type SiteAttention,
 } from "../api/types";
-import { ResultsTable } from "../components/results/ResultsTable";
+import { ResultsTable, type CsvSource } from "../components/results/ResultsTable";
+import { csvFilename } from "../components/results/resultsModel";
 import { TrackView } from "../components/track/TrackView";
 import { SequenceForm } from "../components/form/SequenceForm";
 import { LicenseNotice } from "../components/layout/LicenseNotice";
@@ -138,6 +139,15 @@ export function SequencePage() {
     return map;
   }, [result]);
 
+  // Server CSV = the same request with ?format=csv (all rows, regardless of table filters).
+  const csv = useMemo<CsvSource | null>(
+    () =>
+      request && result
+        ? { download: (signal) => predictSequenceCsv(request, signal), filename: csvFilename(result.meta) }
+        : null,
+    [request, result],
+  );
+
   return (
     <div className="space-y-6">
       <section>
@@ -179,7 +189,7 @@ export function SequencePage() {
         </div>
       )}
 
-      {status === "success" && result && request && (
+      {status === "success" && result && csv && (
         <div className="space-y-6" data-testid="results">
           <ResultsSummary result={result} />
           {result.results.length === 0 ? (
@@ -202,7 +212,7 @@ export function SequencePage() {
               <ResultsTable
                 sites={result.results}
                 meta={result.meta}
-                request={request}
+                csv={csv}
                 selectedKey={selectedKey}
                 onSelect={setSelectedKey}
                 onVisibleChange={setVisible}

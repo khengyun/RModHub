@@ -1,0 +1,55 @@
+{
+  "job_id": "6f1d2c3a-9b8e-4c7d-a1b2-3c4d5e6f7a8b",
+  "status": "uploading",
+  "stage": "uploading",
+  "progress": null,
+  "eta_s": null,
+  "kit": "RNA004",
+  "input_kind": "upload",
+  "input_bytes": {
+    "pod5": 838860,
+    "bam": 54272,
+    "reference": 4096,
+    "regions": 96
+  },
+  "created_at": "2026-08-31T09:00:00Z",
+  "started_at": null,
+  "finished_at": null,
+  "expires_at": null,
+  "inputs_deleted_at": null,
+  "cancel_requested": false,
+  "error": null,
+  "n_sites": null,
+  "n_reads": null,
+  "n_transcripts": null,
+  "model": {
+    "name": "DirectRM",
+    "version": "bc7a085"
+  },
+  "uploads": {
+    "pod5": {
+      "url": "/api/uploads/11111111-1111-4111-8111-111111111111",
+      "length": 838860,
+      "offset": 335544,
+      "complete": false
+    },
+    "bam": {
+      "url": "/api/uploads/22222222-2222-4222-8222-222222222222",
+      "length": 54272,
+      "offset": 54272,
+      "complete": true
+    },
+    "reference": {
+      "url": "/api/uploads/33333333-3333-4333-8333-333333333333",
+      "length": 4096,
+      "offset": 0,
+      "complete": false
+    },
+    "regions": {
+      "url": "/api/uploads/44444444-4444-4444-8444-444444444444",
+      "length": 96,
+      "offset": 0,
+      "complete": false
+    }
+  }
+}
