@@ -2,9 +2,11 @@
  * NAR Web Server Issue proof: the application never contacts a third party and never
  * sets a cookie. Every browser request during a full session is recorded and must stay
  * on the app's own origin; no response may carry Set-Cookie; the cookie jar stays empty.
+ * The session covers both branches: the sequence tool, the Nanopore signal page (or its
+ * disabled notice) and a /result page.
  */
 import { expect, test, type Page } from "@playwright/test";
-import { loadSample, row, runAndWait } from "./helpers";
+import { loadSample, row, runAndWait, serverCapabilities, UNKNOWN_JOB_ID } from "./helpers";
 
 interface NetworkLog {
   offOrigin: string[];
@@ -44,13 +46,14 @@ function recordNetwork(page: Page, origin: string): NetworkLog {
 }
 
 test.describe("NAR compliance: same-origin only, no cookies", () => {
-  test("a full session (sample run, selection, CSV, Help, Signal) stays on the app origin", async ({
+  test("a full session (sample run, selection, CSV, Help, Signal, result page) stays on the app origin", async ({
     page,
     context,
     baseURL,
   }) => {
     const origin = new URL(baseURL as string).origin;
     const log = recordNetwork(page, origin);
+    const caps = await serverCapabilities(page.request);
 
     await page.goto("/");
     await loadSample(page);
@@ -64,8 +67,18 @@ test.describe("NAR compliance: same-origin only, no cookies", () => {
 
     await page.getByTestId("nav-help").click();
     await expect(page.getByTestId("help-page")).toBeVisible();
-    await page.getByTestId("nav-signal").click();
-    await expect(page.locator("main")).toContainText(/phase 2/i);
+    if (caps?.signal) {
+      await page.getByTestId("nav-signal").click();
+      await expect(page.getByTestId("signal-page")).toBeVisible();
+      await expect(page.getByTestId("data-lifecycle")).toBeVisible();
+    } else {
+      await expect(page.getByTestId("nav-signal")).toHaveCount(0);
+      await page.goto("/signal");
+      await expect(page.getByTestId("signal-disabled")).toBeVisible();
+    }
+    await page.goto(`/result/${UNKNOWN_JOB_ID}`);
+    if (caps?.signal) await expect(page.getByTestId("job-missing")).toBeVisible();
+    else await expect(page.getByTestId("signal-disabled")).toBeVisible();
     await page.getByTestId("nav-sequence").click();
     await expect(page.getByTestId("sequence-input")).toBeVisible();
     await page.waitForLoadState("networkidle");

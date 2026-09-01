@@ -1,4 +1,4 @@
-"""Liveness / readiness endpoint."""
+"""Liveness / readiness endpoint (200 once the sequence model is loaded)."""
 
 from __future__ import annotations
 
@@ -31,4 +31,5 @@ def health(request: Request) -> HealthResponse:
         model_loaded=True,
         uptime_s=round(uptime_s, 1),
         version=state.settings.version,
+        signal_enabled=state.settings.signal_enabled,
     )

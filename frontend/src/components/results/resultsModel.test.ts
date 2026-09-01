@@ -3,10 +3,15 @@ import { MOD_TYPES, siteKey, type ModSite, type PredictionMeta } from "../../api
 import golden from "../../api/fixtures/golden_attention.json";
 import goldenFasta from "../../api/fixtures/golden_fasta.json";
 import manyRows from "../../api/fixtures/many_rows.json";
+import signalResults from "../../api/fixtures/signal_results.json";
+import type { SignalSite } from "../../api/types";
 import {
   allModTypes,
   CSV_HEADER,
   csvFilename,
+  formatCi,
+  SIGNAL_CSV_EXTRA,
+  withCsvSuffix,
   DEFAULT_SORT,
   defaultFilterInputs,
   filterSites,
@@ -20,8 +25,24 @@ import {
   toCsv,
   toFilters,
   visibleColumns,
+  chipModTypes,
   type Filters,
 } from "./resultsModel";
+
+describe("chipModTypes", () => {
+  it("uses meta.mod_types (plus unexpected row types) in canonical order for signal results", () => {
+    const meta = { source: "signal" as const, mod_types: ["ac4C", "m1A", "m5C", "m6A", "m7G", "Psi"] };
+    const rows = [{ mod_type: "m6A" }, { mod_type: "hm5C" }] as never[];
+    expect(chipModTypes(meta, [])).toEqual(["m1A", "m5C", "m6A", "m7G", "Psi", "ac4C"]);
+    expect(chipModTypes(meta, rows)).toEqual(["m1A", "m5C", "m6A", "m7G", "Psi", "ac4C", "hm5C"]);
+  });
+
+  it("keeps the 12 canonical types for the sequence branch (and when meta.mod_types is empty)", () => {
+    const rows = [{ mod_type: "m6A" }] as never[];
+    expect(chipModTypes({ source: "sequence", mod_types: ["m6A"] }, rows)).toHaveLength(12);
+    expect(chipModTypes({ source: "signal", mod_types: [] }, rows)).toHaveLength(12);
+  });
+});
 
 const rows = golden.results as ModSite[];
 const meta = golden.meta as unknown as PredictionMeta;
@@ -224,5 +245,47 @@ describe("columns and helpers", () => {
     expect(f.posMin).toBeNull();
     expect(f.posMax).toBe(100);
     expect(filterSites(rows, f).every((r) => r.position <= 100)).toBe(true);
+  });
+});
+
+describe("signal-branch columns and CSV", () => {
+  const signal = signalResults.results as SignalSite[];
+
+  it("signal rows switch on strand / CI / coverage / count and switch off p-value", () => {
+    expect(visibleColumns(signal).map((c) => c.id)).toEqual([
+      "index", "transcript_id", "position", "strand", "mod_type", "probability", "ci_low", "coverage", "count",
+    ]);
+    expect(visibleColumns([]).map((c) => c.id)).toContain("p_value");
+    expect(formatCi(signal[0])).toMatch(/^\[0\.\d{3}, 0\.\d{3}\]$/);
+    expect(formatCi(rows[0])).toBe("—");
+  });
+
+  it("sorts by the signal keys, nulls (sequence rows) last", () => {
+    const mixed = [rows[0], ...signal.slice(0, 3)];
+    expect(sortSites(mixed, { key: "count", dir: "desc" }).at(-1)).toBe(rows[0]);
+    const byCov = sortSites(signal, { key: "coverage", dir: "asc" });
+    for (let i = 1; i < byCov.length; i++) expect(byCov[i].coverage).toBeGreaterThanOrEqual(byCov[i - 1].coverage as number);
+    const byCi = sortSites(signal, { key: "ci_low", dir: "desc" });
+    expect((byCi[0] as SignalSite).ci_low).toBe(Math.max(...signal.map((s) => s.ci_low)));
+    const byStrand = sortSites(signal, { key: "strand", dir: "asc" });
+    expect(byStrand).toHaveLength(signal.length);
+  });
+
+  it("toCsv appends the server's extra columns for signal rows only", () => {
+    const lines = toCsv(signal.slice(0, 2)).trimEnd().split("\n");
+    expect(lines[0]).toBe([...CSV_HEADER, ...SIGNAL_CSV_EXTRA].join(","));
+    expect(lines[1].split(",")).toHaveLength(13);
+    expect(lines[1].split(",")[4]).toBe(""); // p_value empty
+    expect(lines[1].split(",")[6]).toBe("signal");
+    expect(toCsv(rows).split("\n")[0]).toBe(CSV_HEADER.join(","));
+    expect(withCsvSuffix("rmodhub_signal_x_sites.csv", "filtered")).toBe("rmodhub_signal_x_sites_filtered.csv");
+    expect(withCsvSuffix("weird", "filtered")).toBe("weird_filtered.csv");
+  });
+
+  it("allModTypes lists ac4C after the frozen 12 and the default filters keep every signal row", () => {
+    expect(allModTypes(signal)).toEqual([...MOD_TYPES, "ac4C"]);
+    const meta = { alpha: 1, predicted_start: 1, predicted_end: 1200 } as PredictionMeta;
+    const f = toFilters(defaultFilterInputs(meta, signal));
+    expect(filterSites(signal.filter((s) => s.transcript_id === "tx_A"), f)).toHaveLength(14);
   });
 });

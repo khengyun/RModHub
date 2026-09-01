@@ -1,0 +1,362 @@
+[
+  {
+    "read_id": "read-0008-c302c6",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8451,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0022-17b244",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8746,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0029-cd2a8d",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8427,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0039-966b62",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.2425,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0005-638ba6",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8523,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0030-380f76",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.7324,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0026-bc751e",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.7681,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0011-2d3fdd",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.9351,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0002-be15c2",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.723,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0038-5b5114",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.1258,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0031-4fd3d7",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.7331,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0027-eac7a9",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.9773,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0017-3daa3b",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.7478,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0013-b7daa8",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.7046,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0006-9301e8",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8107,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0024-949e53",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8369,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0037-a4c1fa",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.0787,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0040-14c222",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.3031,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0019-95409b",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.804,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0036-8223b6",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.1542,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0015-7cbf5b",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.6289,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0010-2e393f",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.5976,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0014-fb19d2",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.5674,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0003-011e56",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8077,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0025-f20602",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.9352,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0012-ea6362",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8666,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0004-dd687f",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.9442,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0035-77ecbd",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.1129,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0028-1ae28f",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.7723,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0023-064a30",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.9774,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0007-c9da75",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.5839,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0021-b44a51",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8106,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0018-06a9b6",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.9595,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0034-47278a",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.0279,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0009-a2b166",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8023,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0032-33ab74",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.0939,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0001-4936bb",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.5709,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0020-e5339d",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.6494,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0016-3f2907",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.8954,
+    "source": "signal"
+  },
+  {
+    "read_id": "read-0033-a031c0",
+    "transcript_id": "tx_A",
+    "position": 101,
+    "strand": "+",
+    "mod_type": "m6A",
+    "probability": 0.3407,
+    "source": "signal"
+  }
+]

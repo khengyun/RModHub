@@ -1,0 +1,17 @@
+{
+  "sequence": true,
+  "signal": true,
+  "limits": {
+    "max_pod5_gb": 5,
+    "max_reference_mb": 500,
+    "max_regions": 10000,
+    "max_running_per_ip": 1,
+    "max_queued_per_ip": 3,
+    "job_timeout_h": 6,
+    "tus_chunk_mb": 64
+  },
+  "retention": {
+    "inputs_deleted": "after feature extraction, at most 48 h",
+    "results_days": 14
+  }
+}

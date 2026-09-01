@@ -1,0 +1,88 @@
+{
+  "expected_reads": {
+    "total": 88,
+    "tx_A": 40,
+    "tx_B": 36,
+    "tx_C": 12
+  },
+  "files": {
+    "README.md": {
+      "bytes": 5462,
+      "sha256": "7aef6c07b0ed6efaa2127d97d0ddb4895e2613aaf0b6c1ca8605069823068d30"
+    },
+    "sample.pod5": {
+      "bytes": 1272752,
+      "content_sha256": "59da7dd7b0863e72f6b4bec3b399690abebe439fa7adb881b6e0413803943a40",
+      "sha256": "487700d6d0d24da9eff923a54b5208c260372d018dc7cba09dd36585626e5268"
+    },
+    "sample_reference.fa": {
+      "bytes": 1702,
+      "sha256": "d2656b9895676e3a89900b289f460f08a6008b49b56237fb3d9293ef9139f2b5"
+    },
+    "sample_reference.fa.fai": {
+      "bytes": 56,
+      "sha256": "4e027eb4b2b744b5ff6ec85119ba5a336b0fe6c31c4e7d765135cc20d48e9c56"
+    },
+    "sample_regions.csv": {
+      "bytes": 86,
+      "sha256": "a8635744d0d8a4485074a93ae5dd06e1d7973a5e59119b8f9dee613b7cfe6d6f"
+    },
+    "sample_sorted.bam": {
+      "bytes": 81719,
+      "sha256": "7b1313f508cd9dcb9e6fc6f73e6dcff86860fcb984501878cc0f14a0578b8772"
+    },
+    "sample_sorted.bam.bai": {
+      "bytes": 256,
+      "sha256": "c69fd3c271f603fd1507f60aa7f0b4c59235a6f664494cc9fd45e0fbf2c7babf"
+    }
+  },
+  "generator": {
+    "args": {
+      "layout": "rna_raw",
+      "levels": "9mer_levels_v1.txt",
+      "levels_sha256": "1d366c9e060f31be1d6489b88b415666fba42f1c4006e1e549666f4a50f13e63",
+      "seed": 20250831
+    },
+    "script": "scripts/make_signal_sample.py",
+    "version": "1.0.0",
+    "versions": {
+      "numpy": "2.5.2",
+      "pod5": "0.3.35",
+      "pysam": "0.24.0",
+      "python": "3.12.13"
+    }
+  },
+  "kit": "RNA004",
+  "license": "CC0-1.0",
+  "pod5_content_digest": {
+    "algorithm": "sha256",
+    "recipe": "sha256 over reads sorted by read_id string: for each read, read_id (36 ASCII chars) + b'\\n' + signal as little-endian int16 bytes + b'\\n'"
+  },
+  "regions": [
+    {
+      "end": 300,
+      "seqnames": "tx_A",
+      "start": 60,
+      "strand": "+",
+      "width": 241
+    },
+    {
+      "end": 320,
+      "seqnames": "tx_B",
+      "start": 80,
+      "strand": "+",
+      "width": 241
+    },
+    {
+      "end": 250,
+      "seqnames": "tx_C",
+      "start": 50,
+      "strand": "+",
+      "width": 201
+    }
+  ],
+  "sample_rate": 4000,
+  "schema": 1,
+  "stride": 5,
+  "synthetic": true
+}

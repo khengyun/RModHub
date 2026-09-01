@@ -7,8 +7,6 @@ while a long sequence is being scored).
 
 from __future__ import annotations
 
-import csv
-import io
 import logging
 from time import perf_counter
 from typing import Literal
@@ -17,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 
 from app.api.normalize import normalize_sequence
+from app.csvio import MODSITE_COLUMNS, iter_csv, modsite_cells
 from app.predictors.base import FLANK_NT
 from app.schemas import (
     MOD_TYPES,
@@ -30,15 +29,8 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/predict", tags=["predict"])
 
-CSV_COLUMNS = (
-    "transcript_id",
-    "position",
-    "mod_type",
-    "probability",
-    "p_value",
-    "coverage",
-    "source",
-)
+# The shared long format (app/csvio.py); the signal branch emits the same seven columns first.
+CSV_COLUMNS = MODSITE_COLUMNS
 CSV_FILENAME = "rmodhub_sites.csv"
 
 _ERROR_RESPONSES = {
@@ -55,22 +47,7 @@ _ERROR_RESPONSES = {
 
 def sites_to_csv(sites: list[ModSite]) -> str:
     """Serialise sites in the shared long format. None -> empty cell."""
-    buf = io.StringIO()
-    writer = csv.writer(buf, lineterminator="\n")
-    writer.writerow(CSV_COLUMNS)
-    for s in sites:
-        writer.writerow(
-            [
-                s.transcript_id if s.transcript_id is not None else "",
-                s.position,
-                s.mod_type,
-                s.probability,
-                s.p_value if s.p_value is not None else "",
-                s.coverage if s.coverage is not None else "",
-                s.source,
-            ]
-        )
-    return buf.getvalue()
+    return "".join(iter_csv(CSV_COLUMNS, (modsite_cells(s) for s in sites)))
 
 
 @router.post(

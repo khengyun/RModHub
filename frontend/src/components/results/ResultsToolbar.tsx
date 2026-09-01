@@ -25,6 +25,8 @@ const numberInputClass =
 export function ResultsToolbar(p: ResultsToolbarProps) {
   const chipsId = useId();
   const activeCount = p.modTypes.filter((t) => p.inputs.modTypes.has(t)).length;
+  // Signal rows have no p-value (the column is hidden too) and "probability" is a rate.
+  const signal = p.meta.source === "signal";
 
   const setModTypes = (next: ReadonlySet<string>) => p.onChange({ modTypes: next });
   const toggle = (id: string) => {
@@ -96,22 +98,24 @@ export function ResultsToolbar(p: ResultsToolbarProps) {
 
       {/* Numeric limits + quick filter */}
       <div className="flex flex-wrap items-end gap-x-5 gap-y-2">
+        {!signal && (
+          <label className="flex items-center gap-1.5">
+            <span className="text-slate-600">p-value ≤</span>
+            <input
+              data-testid="filter-pvalue-max"
+              type="number"
+              inputMode="decimal"
+              min={0}
+              max={1}
+              step={0.001}
+              value={p.inputs.pMax}
+              onChange={(e) => p.onChange({ pMax: e.target.value })}
+              className={numberInputClass}
+            />
+          </label>
+        )}
         <label className="flex items-center gap-1.5">
-          <span className="text-slate-600">p-value ≤</span>
-          <input
-            data-testid="filter-pvalue-max"
-            type="number"
-            inputMode="decimal"
-            min={0}
-            max={1}
-            step={0.001}
-            value={p.inputs.pMax}
-            onChange={(e) => p.onChange({ pMax: e.target.value })}
-            className={numberInputClass}
-          />
-        </label>
-        <label className="flex items-center gap-1.5">
-          <span className="text-slate-600">Probability ≥</span>
+          <span className="text-slate-600">{signal ? "Rate ≥" : "Probability ≥"}</span>
           <input
             data-testid="filter-prob-min"
             type="number"

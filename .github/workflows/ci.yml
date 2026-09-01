@@ -40,7 +40,7 @@ jobs:
         run: uv run pytest -q
 
   docker:
-    name: Docker build and smoke test
+    name: API image build and smoke test
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -55,8 +55,8 @@ jobs:
           push: false
           load: true
           tags: rmodhub-api:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
 
       - name: Image report and CPU-only torch guard
         run: |
@@ -104,6 +104,58 @@ jobs:
           test "$code" = "200"
           python3 -c 'import json; d=json.load(open("/tmp/predict.json")); n=d.get("meta", {}).get("n_sites", len(d.get("results", []))); print("n_sites =", n); assert n > 0, "expected at least one predicted site for the sample"'
 
+      - name: Signal branch is off without a database (503, still documented)
+        run: |
+          set -euo pipefail
+          curl -fsS http://127.0.0.1:8000/api/capabilities | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d); assert d["sequence"] is True and d["signal"] is False'
+          code=$(curl -sS -o /tmp/jobs.json -w '%{http_code}' -X POST http://127.0.0.1:8000/api/jobs/signal/sample)
+          cat /tmp/jobs.json; echo
+          test "$code" = "503"
+          curl -fsS http://127.0.0.1:8000/openapi.json | python3 -c 'import sys,json; p=json.load(sys.stdin)["paths"]; assert "/api/jobs/signal" in p and "/api/uploads/{upload_id}" in p'
+
+      - name: X-Forwarded-For is believed from the container network only (never "*")
+        # deploy/api-entrypoint.py: the trusted proxies are the container's own network(s)
+        # minus Docker's gateway. From a peer inside that network (what nginx/Caddy are)
+        # uvicorn walks the header from the right and stops at the first non-proxy address,
+        # so a client-written first entry never becomes the quota key
+        # (app/jobs/quota.py::client_key); from the gateway (host / userland proxy) or any
+        # outside address the header is ignored altogether.
+        run: |
+          set -euo pipefail
+          subnet=$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Subnet}}')
+          gateway=$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}')
+          api=$(docker inspect --format '{{.NetworkSettings.IPAddress}}' rmodhub)
+          trusted=$(docker run --rm rmodhub-api:ci --show)
+          echo "trusted proxies: $trusted (docker bridge: $subnet, gateway: $gateway, api: $api)"
+          python3 - "$trusted" "$api" "$gateway" <<'EOF'
+          import ipaddress, sys
+          nets = [ipaddress.ip_network(n) for n in sys.argv[1].split(",")]
+          api, gateway = ipaddress.ip_address(sys.argv[2]), ipaddress.ip_address(sys.argv[3])
+          assert any(api in n for n in nets), "peers on the container network must be trusted"
+          assert not any(gateway in n for n in nets), "Docker's gateway must not be trusted"
+          EOF
+          docker logs rmodhub 2>&1 | grep -F 'trusted proxies for X-Forwarded-* = ' | grep -F '(detected)'
+          # Peer on the container network, two hops in the header: rightmost non-proxy wins.
+          docker run --rm alpine:3.20 wget -qO- --header 'X-Forwarded-For: 203.0.113.9, 198.51.100.7' "http://$api:8000/api/capabilities?t=peer" >/dev/null
+          docker logs rmodhub 2>&1 | grep -F '198.51.100.7:0 - "GET /api/capabilities?t=peer'
+          # Runner host through the published port (arrives from the gateway): header ignored.
+          curl -fsS -o /dev/null -H 'X-Forwarded-For: 203.0.113.9' 'http://127.0.0.1:8000/api/capabilities?t=host'
+          docker logs rmodhub 2>&1 | grep -F '"GET /api/capabilities?t=host'
+          if docker logs rmodhub 2>&1 | grep -F '203.0.113.9'; then
+            echo "::error::a client-written X-Forwarded-For entry was used as the client address"; exit 1
+          fi
+
+      - name: Refuses to start the signal branch with the development HMAC key
+        run: |
+          set -euo pipefail
+          set +e
+          out=$(docker run --rm -e DATABASE_URL=postgresql+psycopg://rmodhub:x@db:5432/rmodhub rmodhub-api:ci 2>&1)
+          code=$?
+          set -e
+          echo "$out"
+          test "$code" -ne 0 || { echo "::error::api started with DATABASE_URL and no RMODHUB_IP_HASH_SECRET"; exit 1; }
+          echo "$out" | grep -q 'refusing to start: RMODHUB_IP_HASH_SECRET is not set'
+
       - name: Container logs
         if: always()
         run: docker logs rmodhub || true
@@ -111,6 +163,144 @@ jobs:
       - name: Stop container
         if: always()
         run: docker rm -f rmodhub || true
+
+  worker-image:
+    name: Worker image build (DirectRM, Python 3.10, CPU torch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: worker
+          push: false
+          load: true
+          tags: rmodhub-worker:ci
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
+
+      - name: Import check and CPU-only torch guard
+        run: |
+          set -euo pipefail
+          docker image ls rmodhub-worker:ci
+          docker run --rm rmodhub-worker:ci python -c '
+          import importlib, torch
+          for mod in ("remora", "pod5", "pysam", "celery", "rmodhub_worker.celery_app"):
+              importlib.import_module(mod)
+              print("import", mod, "ok")
+          v = torch.__version__
+          print("torch", v, "cuda available:", torch.cuda.is_available())
+          assert "+cpu" in v, f"expected CPU-only torch, got {v}"
+          assert not torch.cuda.is_available()
+          '
+          if docker run --rm rmodhub-worker:ci sh -c 'ls /app/.venv/lib/python3.*/site-packages | grep -i nvidia'; then
+            echo "::error::nvidia packages present in worker image"; exit 1
+          fi
+
+      - name: Size guard (root filesystem < 3 GB)
+        # Measured inside the container so the number does not depend on the daemon's
+        # image store (`docker image inspect .Size` is the unpacked size under overlay2
+        # but the compressed content size under the containerd store). Baseline ~1.8 GB
+        # (torch CPU 0.7 GB, polars/pyarrow ~0.3 GB); a CUDA torch would add 3+ GB.
+        run: |
+          set -euo pipefail
+          docker image ls rmodhub-worker:ci
+          size=$(docker run --rm rmodhub-worker:ci sh -c 'du -sxb / 2>/dev/null | cut -f1')
+          test -n "$size" || { echo "::error::could not measure the worker root filesystem"; exit 1; }
+          echo "worker root filesystem: $((size / 1024 / 1024)) MB"
+          test "$size" -lt 3000000000 || { echo "::error::worker root filesystem is larger than 3 GB"; exit 1; }
+
+  phase2-smoke:
+    name: Signal branch smoke (compose --profile phase2, sample job)
+    runs-on: ubuntu-latest
+    needs: [docker, worker-image]
+    timeout-minutes: 60
+    env:
+      POSTGRES_PASSWORD: ci-only-password
+      RMODHUB_IP_HASH_SECRET: ci-only-secret
+      RMODHUB_WEB_PORT: "8080"
+      BASE: http://localhost:8080
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Start api + web + postgres + redis + worker and wait for health
+        run: docker compose --profile phase2 up -d --build --wait --wait-timeout 900
+
+      - name: Capabilities report the signal branch
+        run: |
+          set -euo pipefail
+          curl -fsS "$BASE/api/capabilities" | python3 -c '
+          import sys, json
+          d = json.load(sys.stdin); print(json.dumps(d))
+          assert d["sequence"] is True and d["signal"] is True, d
+          assert d["limits"]["max_regions"] == 10000 and d["retention"]["results_days"] == 14
+          '
+          curl -fsS "$BASE/health" | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d["signal_enabled"] is True, d'
+          curl -fsS "$BASE/api/samples/signal" | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d["source"] == "synthetic" and len(d["files"]) == 5, d; print(d["name"], [f["filename"] for f in d["files"]])'
+
+      - name: Run the synthetic sample job to completion (up to 20 min)
+        run: |
+          set -euo pipefail
+          job=$(curl -fsS -X POST "$BASE/api/jobs/signal/sample" \
+            | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d["status"] == "queued", d; print(d["job_id"])')
+          echo "job_id=$job" >> "$GITHUB_ENV"
+          echo "job $job queued"
+          for i in $(seq 1 120); do
+            st=$(curl -fsS "$BASE/api/jobs/$job")
+            status=$(echo "$st" | python3 -c 'import sys,json; print(json.load(sys.stdin)["status"])')
+            echo "[$i] $st"
+            case "$status" in
+              done) exit 0 ;;
+              failed|cancelled|expired) echo "::error::job ended as $status"; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::job did not finish within 20 min"; exit 1
+
+      - name: Results assertions (site + read level, CSV headers)
+        run: |
+          set -euo pipefail
+          curl -fsS "$BASE/api/jobs/$job_id/results?limit=5" -o /tmp/results.json
+          python3 - <<'EOF'
+          import json
+          d = json.load(open("/tmp/results.json"))
+          assert d["total"] > 0, "no sites reported"
+          row = d["results"][0]
+          shared = ["transcript_id", "position", "mod_type", "probability", "p_value", "coverage", "source"]
+          assert list(row)[:7] == shared, row
+          assert row["source"] == "signal" and row["p_value"] is None and row["coverage"] >= 1
+          meta = d["meta"]
+          assert meta["source"] == "signal" and meta["model_name"] == "DirectRM"
+          assert meta["mod_types"] == ["ac4C", "m1A", "m5C", "m6A", "m7G", "Psi"]
+          assert meta["low_coverage_threshold"] == 30
+          tx = {t["transcript_id"] for t in meta["transcripts"]}
+          print("total sites:", d["total"], "transcripts:", sorted(tx), "n_reads:", meta["n_reads"])
+          EOF
+          site=$(python3 -c 'import json; r=json.load(open("/tmp/results.json"))["results"][0]; print(r["transcript_id"], r["position"])')
+          set -- $site
+          curl -fsS "$BASE/api/jobs/$job_id/results?level=read&transcript_id=$1&position=$2" \
+            | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d["total"] > 0 and "read_id" in d["results"][0], d; print("reads at site:", d["total"])'
+          curl -fsS "$BASE/api/jobs/$job_id/download.csv" -o /tmp/sites.csv
+          head -c 400 /tmp/sites.csv; echo
+          head -1 /tmp/sites.csv | grep -qx 'transcript_id,position,mod_type,probability,p_value,coverage,source,strand,count,ci_low,ci_high,max_prob,noisyor_prob'
+          test "$(wc -l < /tmp/sites.csv)" -gt 1
+          curl -fsS "$BASE/api/jobs/$job_id/download.csv?level=read" | head -1 \
+            | grep -qx 'read_id,transcript_id,position,strand,mod_type,probability,source'
+          curl -fsS "$BASE/api/jobs/$job_id" | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d["inputs_deleted_at"] is not None, "worker did not delete the inputs"; print("inputs deleted at", d["inputs_deleted_at"])'
+
+      - name: Stack logs
+        if: failure()
+        run: docker compose --profile phase2 logs --no-color --tail=400
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile phase2 down -v
 
   frontend:
     name: Frontend typecheck, unit tests, build, no-CDN check

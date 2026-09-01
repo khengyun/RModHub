@@ -1,12 +1,13 @@
 /**
- * Application shell: header (inline-SVG logo, tab navigation, model status), the routed
- * page (<Outlet />) and the license footer on every page. No external assets anywhere:
- * the logo is inline SVG and fonts come from the system stack in index.css.
+ * Application shell: header (inline-SVG logo, tab navigation), the routed page (<Outlet />)
+ * and the license footer on every page. No external assets anywhere: the logo is inline
+ * SVG and fonts come from the system stack in index.css.
+ *
+ * The "Nanopore signal" tab is shown only when GET /api/capabilities reports signal: true.
  */
 import { NavLink, Outlet } from "react-router-dom";
-import { HealthIndicator } from "./HealthIndicator";
+import { useCapabilities } from "./CapabilitiesProvider";
 import { SiteFooter } from "./SiteFooter";
-import { useHealth } from "./useHealth";
 
 function tabClass({ isActive }: { isActive: boolean }): string {
   return [
@@ -36,7 +37,7 @@ function Logo() {
 }
 
 export function Layout() {
-  const health = useHealth();
+  const { capabilities } = useCapabilities();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -61,12 +62,11 @@ export function Layout() {
             <NavLink to="/" end className={tabClass} data-testid="nav-sequence">
               Sequence
             </NavLink>
-            <NavLink to="/signal" className={tabClass} data-testid="nav-signal">
-              Nanopore signal
-              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                phase 2
-              </span>
-            </NavLink>
+            {capabilities.signal && (
+              <NavLink to="/signal" className={tabClass} data-testid="nav-signal">
+                Nanopore signal
+              </NavLink>
+            )}
             <NavLink to="/help" className={tabClass} data-testid="nav-help">
               Help
             </NavLink>
@@ -75,10 +75,6 @@ export function Layout() {
               API docs
             </a>
           </nav>
-
-          <div className="ml-auto py-2">
-            <HealthIndicator state={health} />
-          </div>
         </div>
       </header>
 
@@ -86,7 +82,7 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <SiteFooter api={health.status === "ready" ? health.health : null} />
+      <SiteFooter />
     </div>
   );
 }

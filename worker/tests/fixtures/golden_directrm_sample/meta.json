@@ -1,0 +1,115 @@
+{
+  "description": "Outputs of the five UNMODIFIED DirectRM scripts run by hand on app/samples/signal (see README.md)",
+  "generated_at": "2026-08-31",
+  "directrm_commit": "bc7a08573dfe7629e808256fa6ade6e4111ed1f9",
+  "kit": "RNA004",
+  "level_table": "9mer_levels_v1.txt",
+  "model_id": 5,
+  "ml": true,
+  "denovo_model": "model/RNA004/id3_binary/model.pt",
+  "min_coverage": 30,
+  "max_coverage": 150,
+  "kmer": 9,
+  "step": 5,
+  "env": {
+    "PYTHONHASHSEED": "0",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "versions": {
+    "python": "3.9.25",
+    "ont-remora": "3.2.0",
+    "pod5": "0.3.35",
+    "lib-pod5": "0.3.35",
+    "pysam": "0.24.0",
+    "torch": "2.8.0+cpu",
+    "numpy": "2.0.2",
+    "pandas": "2.3.3"
+  },
+  "sample_inputs": {
+    "sample.pod5": "42489b1152f7028cddf586f577f283505394e1c9d0f9f4380ccfc64e65a8432d",
+    "sample_reference.fa": "d2656b9895676e3a89900b289f460f08a6008b49b56237fb3d9293ef9139f2b5",
+    "sample_reference.fa.fai": "4e027eb4b2b744b5ff6ec85119ba5a336b0fe6c31c4e7d765135cc20d48e9c56",
+    "sample_regions.csv": "a8635744d0d8a4485074a93ae5dd06e1d7973a5e59119b8f9dee613b7cfe6d6f",
+    "sample_sorted.bam": "7b1313f508cd9dcb9e6fc6f73e6dcff86860fcb984501878cc0f14a0578b8772",
+    "sample_sorted.bam.bai": "c69fd3c271f603fd1507f60aa7f0b4c59235a6f664494cc9fd45e0fbf2c7babf"
+  },
+  "sample_pod5_content_sha256": "59da7dd7b0863e72f6b4bec3b399690abebe439fa7adb881b6e0413803943a40",
+  "n_reads_sampled": 76,
+  "reads_txt_sha256": "5ee72e86f6f4be2846a4f954b460eeab2ddff0b0c54ba985af8b947517000487",
+  "n_reads_features": 76,
+  "n_kmers": 3648,
+  "feature_shapes": {
+    "seq": [
+      3648,
+      9,
+      4
+    ],
+    "stat": [
+      3648,
+      9,
+      8
+    ],
+    "level": [
+      3648,
+      9
+    ],
+    "bse": [
+      3648,
+      9,
+      4
+    ]
+  },
+  "denovo_frac_modified": 0.009868421052631578,
+  "denovo_mean": 0.012244906276464462,
+  "regions_total": 3,
+  "regions_skipped_low_coverage": 1,
+  "regions_subsampled": 0,
+  "n_sites": 725,
+  "n_read_rows": 14027,
+  "sites_per_type": {
+    "ac4c": {
+      "n_sites": 123,
+      "sha256": "e7cd987b4fab4614ddf74e2a3cf8c1b742ad0af52c60f972ae737d4bf4c914dd",
+      "sum_count": 0,
+      "sum_coverage": 2332
+    },
+    "m1a": {
+      "n_sites": 120,
+      "sha256": "2c943829a10d60ff28c214cc4150ebbd214c68574d127c9ca8cb2529058c7ab1",
+      "sum_count": 0,
+      "sum_coverage": 2377
+    },
+    "m5c": {
+      "n_sites": 123,
+      "sha256": "a89e2fe65fc40cb4f4d10d5f8e1df377ee71ceff6b31b551e2f119a2ac8f56e5",
+      "sum_count": 0,
+      "sum_coverage": 2329
+    },
+    "m6a": {
+      "n_sites": 115,
+      "sha256": "5a8c7ab61123d145fe89fe73cc860149f22e1233a32662ccde5fee77c9fc09ed",
+      "sum_count": 0,
+      "sum_coverage": 2280
+    },
+    "m7g": {
+      "n_sites": 126,
+      "sha256": "216559646a762d7d14af8fb38ccc90bd42f1286bf98fffb11dfda37cb4e51de3",
+      "sum_count": 8,
+      "sum_coverage": 2403
+    },
+    "psi": {
+      "n_sites": 118,
+      "sha256": "2a93fb555821541e1a2baf5e19b115d6b82920488d19f4a331d128d7cfffee7c",
+      "sum_count": 0,
+      "sum_coverage": 2306
+    }
+  },
+  "stage_wall_seconds_by_hand": {
+    "sampling": 1.33,
+    "features": 6.64,
+    "denovo": 1.02,
+    "inference": 1.07,
+    "read2site": 0.33
+  }
+}

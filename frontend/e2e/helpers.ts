@@ -8,8 +8,19 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, type Locator, type Page } from "@playwright/test";
-import type { ModSite, PredictRequest, PredictResponse, SampleResponse } from "../src/api/types";
+import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
+import type {
+  Capabilities,
+  JobStatus,
+  ModSite,
+  PredictRequest,
+  PredictResponse,
+  SampleResponse,
+  SignalRead,
+  SignalResultsPage,
+  SignalSampleResponse,
+  SignalSite,
+} from "../src/api/types";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -37,9 +48,10 @@ export const MOD_TYPES = [
   "Am", "Cm", "Gm", "Um", "m1A", "m5C", "m5U", "m6A", "m6Am", "m7G", "Psi", "AtoI",
 ] as const;
 
-/** Same identity the UI uses for rows and glyphs: "{position}:{mod_type}". */
-export function keyOf(site: Pick<ModSite, "position" | "mod_type">): string {
-  return `${site.position}:${site.mod_type}`;
+/** Same identity the UI uses for rows and glyphs: "{position}:{mod_type}" (+ ":{strand}" for signal rows). */
+export function keyOf(site: Pick<ModSite, "position" | "mod_type"> & { strand?: string }): string {
+  const base = `${site.position}:${site.mod_type}`;
+  return site.strand ? `${base}:${site.strand}` : base;
 }
 
 /** p-value as the table renders it (4 decimals). */
@@ -207,3 +219,63 @@ export function isMonotonic<T>(values: T[], cmp: (a: T, b: T) => number, dir: So
 export const numberCmp = (a: number, b: number): number => a - b;
 export const asciiCmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 export const localeCmp = (a: string, b: string): number => a.localeCompare(b, "en");
+
+// ---------------------------------------------------------------------------
+// Nanopore signal branch
+// ---------------------------------------------------------------------------
+
+
+export const CAPABILITIES = readFixture<Capabilities>("capabilities.json");
+export const JOB_UPLOADING = readFixture<JobStatus>("job_uploading.json");
+export const JOB_QUEUED = readFixture<JobStatus>("job_queued.json");
+export const JOB_RUNNING = readFixture<JobStatus>("job_running.json");
+export const JOB_DONE = readFixture<JobStatus>("job_done.json");
+export const JOB_FAILED = readFixture<JobStatus>("job_failed.json");
+export const JOB_CANCELLED = readFixture<JobStatus>("job_cancelled.json");
+export const SIGNAL_RESULTS = readFixture<SignalResultsPage<SignalSite>>("signal_results.json");
+export const SIGNAL_READS = readFixture<SignalResultsPage<SignalRead>>("signal_reads.json");
+export const SAMPLES_SIGNAL = readFixture<SignalSampleResponse>("samples_signal.json");
+
+/** A well-formed UUID that no server will ever know. */
+export const UNKNOWN_JOB_ID = "00000000-0000-4000-8000-000000000000";
+
+/** Site CSV header of the signal branch (docs/signal-branch.md section 6). */
+export const SIGNAL_CSV_HEADER =
+  "transcript_id,position,mod_type,probability,p_value,coverage,source,strand,count,ci_low,ci_high,max_prob,noisyor_prob";
+
+/** Ask the running server whether the signal branch is on (a 404 from a sequence-only API = off). */
+export async function serverCapabilities(request: APIRequestContext): Promise<Capabilities | null> {
+  const res = await request.get("/api/capabilities");
+  if (!res.ok()) return null;
+  return (await res.json()) as Capabilities;
+}
+
+export function jsonRoute(body: unknown, status = 200) {
+  return { status, contentType: "application/json", body: JSON.stringify(body) };
+}
+
+/** Stub GET /api/capabilities so the UI shows (or hides) the signal tab regardless of the backend. */
+export async function stubCapabilities(page: Page, signal: boolean): Promise<void> {
+  await page.route("**/api/capabilities", (route) => route.fulfill(jsonRoute({ ...CAPABILITIES, signal })));
+}
+
+/** Stub the results endpoints of one job with the fixtures (site + read level). */
+export async function stubResults(page: Page, jobId: string): Promise<void> {
+  await page.route(`**/api/jobs/${jobId}/results**`, (route) => {
+    const level = new URL(route.request().url()).searchParams.get("level");
+    return route.fulfill(jsonRoute(level === "read" ? SIGNAL_READS : SIGNAL_RESULTS));
+  });
+  await page.route(`**/api/jobs/${jobId}/download.csv**`, (route) => {
+    const level = new URL(route.request().url()).searchParams.get("level");
+    const body =
+      level === "read"
+        ? "read_id,transcript_id,position,strand,mod_type,probability,source\nr1,tx_A,101,+,m6A,0.9,signal\n"
+        : `${SIGNAL_CSV_HEADER}\ntx_A,101,m6A,0.775,,40,signal,+,31,0.624,0.876,0.86,0.949\n`;
+    return route.fulfill({
+      status: 200,
+      contentType: "text/csv",
+      headers: { "Content-Disposition": `attachment; filename="rmodhub_signal_${jobId}_${level}s.csv"` },
+      body,
+    });
+  });
+}

@@ -86,6 +86,14 @@ _PINNED_ENV_VARS = (
     "RMODHUB_MIN_SEQUENCE_NT",
     "RMODHUB_MAX_SEQUENCE_NT",
     "RMODHUB_DEFAULT_ALPHA",
+    # Signal branch: a developer's DATABASE_URL / broker must never leak into the fixtures
+    # (tests build their own sqlite-backed apps explicitly in tests/test_jobs_api.py).
+    "RMODHUB_DATABASE_URL",
+    "DATABASE_URL",
+    "RMODHUB_CELERY_BROKER_URL",
+    "CELERY_BROKER_URL",
+    "RMODHUB_UPLOAD_DIR",
+    "RMODHUB_SAMPLE_DIR",
 )
 
 

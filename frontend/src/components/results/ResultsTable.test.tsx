@@ -1,41 +1,42 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { siteKey, type ModSite, type PredictionMeta, type PredictRequest } from "../../api/types";
+import { siteKey, type ModSite, type PredictionMeta, type SignalSite } from "../../api/types";
 import golden from "../../api/fixtures/golden_attention.json";
 import manyRows from "../../api/fixtures/many_rows.json";
-import { ResultsTable } from "./ResultsTable";
+import signalResults from "../../api/fixtures/signal_results.json";
+import { transcriptMeta } from "../signal/signalModel";
+import { ResultsTable, type CsvSource } from "./ResultsTable";
 
-vi.mock("../../api/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/client")>();
-  return { ...actual, predictSequenceCsv: vi.fn() };
-});
 vi.mock("../../lib/download", () => ({ downloadBlob: vi.fn(), downloadText: vi.fn() }));
 
-import { predictSequenceCsv } from "../../api/client";
 import { downloadBlob, downloadText } from "../../lib/download";
 
 const rows = golden.results as ModSite[];
 const meta = golden.meta as unknown as PredictionMeta;
-const request: PredictRequest = { sequence: "A".repeat(151), alpha: 0.05, include_attention: true };
 const many = manyRows.response.results as ModSite[];
 const manyMeta = manyRows.response.meta as unknown as PredictionMeta;
+
+function makeCsv(): CsvSource & { download: ReturnType<typeof vi.fn> } {
+  return { download: vi.fn(), filename: "rmodhub_sites_sequence_151nt.csv" };
+}
 
 function renderTable(props: Partial<React.ComponentProps<typeof ResultsTable>> = {}) {
   const onSelect = vi.fn();
   const onVisibleChange = vi.fn();
+  const csv = makeCsv();
   const utils = render(
     <ResultsTable
       sites={rows}
       meta={meta}
-      request={request}
+      csv={csv}
       selectedKey={null}
       onSelect={onSelect}
       onVisibleChange={onVisibleChange}
       {...props}
     />,
   );
-  return { ...utils, onSelect, onVisibleChange };
+  return { ...utils, onSelect, onVisibleChange, csv: (props.csv as typeof csv | undefined) ?? csv };
 }
 
 const rowKeys = () => screen.getAllByTestId("result-row").map((tr) => tr.getAttribute("data-key"));
@@ -61,7 +62,7 @@ describe("ResultsTable (golden fixture)", () => {
     expect(cells).toEqual(["1", "52", "Gm", "0.555", "0.0267"]);
     // Position 79 keeps both rows.
     expect(rowKeys().filter((k) => k?.startsWith("79:"))).toEqual(["79:Cm", "79:m5C"]);
-    // Sequence branch: no transcript / coverage columns.
+    // Sequence branch: no transcript / strand / coverage / CI / count columns.
     const headers = screen.getAllByRole("columnheader").map((th) => th.textContent);
     expect(headers).toEqual(["#", "Position", "Modification", "Probability", "p-value"]);
     // The page is told which rows are visible (all of them, in table order).
@@ -71,13 +72,11 @@ describe("ResultsTable (golden fixture)", () => {
 
   it("clicking a row selects it; clicking the selected row again clears the selection", async () => {
     const user = userEvent.setup();
-    const { onSelect, rerender } = renderTable();
+    const { onSelect, rerender, csv } = renderTable();
     await user.click(screen.getAllByTestId("result-row")[0]);
     expect(onSelect).toHaveBeenCalledWith("52:Gm");
 
-    rerender(
-      <ResultsTable sites={rows} meta={meta} request={request} selectedKey="52:Gm" onSelect={onSelect} />,
-    );
+    rerender(<ResultsTable sites={rows} meta={meta} csv={csv} selectedKey="52:Gm" onSelect={onSelect} />);
     const first = screen.getAllByTestId("result-row")[0];
     expect(first).toHaveAttribute("aria-selected", "true");
     await user.click(first);
@@ -175,16 +174,16 @@ describe("ResultsTable (golden fixture)", () => {
     expect(types[types.length - 1]).toBe("Psi");
   });
 
-  it("downloads the server CSV with the request and the expected filename", async () => {
+  it("downloads the server CSV through the injected source and names the file from it", async () => {
     const user = userEvent.setup();
     const blob = new Blob(["x"], { type: "text/csv" });
     let resolve!: (b: Blob) => void;
-    vi.mocked(predictSequenceCsv).mockReturnValue(new Promise<Blob>((r) => (resolve = r)));
-    renderTable();
+    const csv = makeCsv();
+    csv.download.mockReturnValue(new Promise<Blob>((r) => (resolve = r)));
+    renderTable({ csv });
     const button = screen.getByTestId("download-csv");
     await user.click(button);
-    expect(predictSequenceCsv).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(predictSequenceCsv).mock.calls[0][0]).toBe(request);
+    expect(csv.download).toHaveBeenCalledTimes(1);
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-busy", "true");
     resolve(blob);
@@ -195,8 +194,9 @@ describe("ResultsTable (golden fixture)", () => {
 
   it("shows a readable error when the server CSV fails", async () => {
     const user = userEvent.setup();
-    vi.mocked(predictSequenceCsv).mockRejectedValue(new TypeError("Failed to fetch"));
-    renderTable();
+    const csv = makeCsv();
+    csv.download.mockRejectedValue(new TypeError("Failed to fetch"));
+    renderTable({ csv });
     await user.click(screen.getByTestId("download-csv"));
     expect(await screen.findByTestId("download-csv-error")).toHaveTextContent("Cannot reach the RModHub server");
     expect(downloadBlob).not.toHaveBeenCalled();
@@ -253,14 +253,100 @@ describe("ResultsTable (894-row fixture)", () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     const target = siteKey(many[120]); // page 3 at 50 rows/page
-    const { rerender, onSelect } = renderTable({ sites: many, meta: manyMeta });
+    const { rerender, onSelect, csv } = renderTable({ sites: many, meta: manyMeta });
     expect(screen.getByTestId("page-info")).toHaveTextContent("Page 1 of 18");
-    rerender(
-      <ResultsTable sites={many} meta={manyMeta} request={request} selectedKey={target} onSelect={onSelect} />,
-    );
+    rerender(<ResultsTable sites={many} meta={manyMeta} csv={csv} selectedKey={target} onSelect={onSelect} />);
     await waitFor(() => expect(screen.getByTestId("page-info")).toHaveTextContent("Page 3 of 18"));
     const selected = screen.getAllByTestId("result-row").find((tr) => tr.getAttribute("aria-selected") === "true");
     expect(selected).toHaveAttribute("data-key", target);
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" }));
+  });
+});
+
+describe("ResultsTable (signal rows)", () => {
+  const allSites = signalResults.results as SignalSite[];
+  const txA = allSites.filter((s) => s.transcript_id === "tx_A");
+  const txMeta = transcriptMeta(
+    signalResults.meta as never,
+    signalResults.meta.transcripts[0],
+    txA.length,
+  );
+  const csv: CsvSource = { download: vi.fn(), filename: "rmodhub_signal_job_sites.csv" };
+
+  it("adds the transcript, strand, CI, coverage and count columns and drops p-value", () => {
+    render(<ResultsTable sites={txA} meta={txMeta} csv={csv} selectedKey={null} onSelect={vi.fn()} />);
+    const headers = screen.getAllByRole("columnheader").map((th) => th.textContent);
+    expect(headers).toEqual([
+      "#", "Transcript", "Position", "Strand", "Modification", "Probability", "95% CI", "Coverage", "Modified reads",
+    ]);
+    expect(headers).not.toContain("p-value");
+    const first = screen.getAllByTestId("result-row")[0];
+    const cells = within(first).getAllByRole("cell").map((td) => td.textContent);
+    const site = txA[0];
+    expect(cells).toEqual([
+      "1",
+      "tx_A",
+      String(site.position),
+      site.strand,
+      expect.stringContaining(site.mod_type === "Psi" ? "Psi" : site.mod_type),
+      site.probability.toFixed(3),
+      `[${site.ci_low.toFixed(3)}, ${site.ci_high.toFixed(3)}]`,
+      String(site.coverage),
+      String(site.count),
+    ]);
+    // ac4C (outside the frozen 12) gets its own filter chip with a count.
+    expect(screen.getByTestId("filter-mod-type-ac4C")).toHaveTextContent(
+      String(txA.filter((s) => s.mod_type === "ac4C").length),
+    );
+    // Every row passes the default filters (alpha 1, positions 1..length).
+    expect(screen.getByTestId("visible-count")).toHaveTextContent(`Showing ${txA.length} of ${txA.length} sites`);
+  });
+
+  it("offers only the types DirectRM calls as chips (canonical order), no p-value box, 'Rate ≥'", () => {
+    render(<ResultsTable sites={txA} meta={txMeta} csv={csv} selectedKey={null} onSelect={vi.fn()} />);
+    const toolbar = screen.getByTestId("results-toolbar");
+    const chips = Array.from(toolbar.querySelectorAll('[data-testid^="filter-mod-type-"]'))
+      .map((el) => el.getAttribute("data-testid")!.replace("filter-mod-type-", ""))
+      .filter((id) => id !== "all" && id !== "none");
+    expect(chips).toEqual(["m1A", "m5C", "m6A", "m7G", "Psi", "ac4C"]);
+    expect(toolbar).toHaveTextContent("(6/6 selected)");
+    expect(screen.queryByTestId("filter-pvalue-max")).not.toBeInTheDocument();
+    expect(toolbar).toHaveTextContent("Rate ≥");
+    expect(toolbar).not.toHaveTextContent("Probability ≥");
+    // Rows of signal results are keyed with their strand.
+    expect(screen.getAllByTestId("result-row")[0]).toHaveAttribute("data-key", `${txA[0].position}:${txA[0].mod_type}:+`);
+  });
+
+  it("labels the server CSV with the job-wide row count when the table shows one transcript", () => {
+    render(<ResultsTable sites={txA} meta={txMeta} csv={{ ...csv, totalRows: 22 }} selectedKey={null} onSelect={vi.fn()} />);
+    expect(screen.getByTestId("download-csv")).toHaveTextContent("Download CSV (all 22 sites)");
+    expect(screen.getByTestId("download-csv-note")).toHaveTextContent(/all 22 sites of every transcript/);
+    expect(screen.getByTestId("visible-count")).toHaveTextContent(`Showing ${txA.length} of ${txA.length} sites`);
+  });
+
+  it("sorts by coverage and by count", async () => {
+    const user = userEvent.setup();
+    render(<ResultsTable sites={txA} meta={txMeta} csv={csv} selectedKey={null} onSelect={vi.fn()} />);
+    await user.click(screen.getByTestId("sort-coverage"));
+    const covs = screen.getAllByTestId("result-row").map((tr) => Number(within(tr).getAllByRole("cell")[7].textContent));
+    for (let i = 1; i < covs.length; i++) expect(covs[i]).toBeGreaterThanOrEqual(covs[i - 1]);
+    await user.click(screen.getByTestId("sort-count"));
+    await user.click(screen.getByTestId("sort-count"));
+    const counts = screen.getAllByTestId("result-row").map((tr) => Number(within(tr).getAllByRole("cell")[8].textContent));
+    expect(counts[0]).toBe(Math.max(...txA.map((s) => s.count)));
+  });
+
+  it("the client-side CSV of signal rows carries the server's extra columns", async () => {
+    const user = userEvent.setup();
+    render(<ResultsTable sites={txA} meta={txMeta} csv={csv} selectedKey={null} onSelect={vi.fn()} />);
+    await user.click(screen.getByTestId("download-visible-csv"));
+    const [text, name] = vi.mocked(downloadText).mock.calls.at(-1)!;
+    expect(name).toBe("rmodhub_signal_job_sites_filtered.csv");
+    const lines = text.trimEnd().split("\n");
+    expect(lines[0]).toBe(
+      "transcript_id,position,mod_type,probability,p_value,coverage,source,strand,count,ci_low,ci_high,max_prob,noisyor_prob",
+    );
+    expect(lines).toHaveLength(txA.length + 1);
+    expect(lines[1].startsWith(`tx_A,${txA[0].position},${txA[0].mod_type},${txA[0].probability},,${txA[0].coverage},signal,+,`)).toBe(true);
   });
 });

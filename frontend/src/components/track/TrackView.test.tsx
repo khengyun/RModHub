@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import golden from "../../api/fixtures/golden_attention.json";
 import many from "../../api/fixtures/many_rows.json";
-import { siteKey, type PredictResponse, type SiteAttention } from "../../api/types";
+import signalFixture from "../../api/fixtures/signal_results.json";
+import { siteKey, type PredictResponse, type SignalSite, type SiteAttention } from "../../api/types";
+import { transcriptMeta } from "../signal/signalModel";
 import { TrackView } from "./TrackView";
 
 const goldenRes = golden as unknown as PredictResponse;
@@ -281,5 +283,62 @@ describe("TrackView (synthetic 10,000 nt, 3,000 sites)", () => {
     fireEvent.click(screen.getByTestId("track-zoom-in"));
     fireEvent.click(screen.getByTestId("track-zoom-in"));
     expect(screen.getAllByTestId("track-site").length).toBeGreaterThan(0);
+  });
+});
+
+describe("TrackView (signal rows: rate glyphs, no scoring window)", () => {
+  // tx_B (900 nt) stays above 1 px/nt at the fallback width, so individual glyphs are drawn.
+  const signalRows = (signalFixture.results as SignalSite[]).filter((s) => s.transcript_id === "tx_B");
+  const signalMeta = transcriptMeta(signalFixture.meta as never, signalFixture.meta.transcripts[1], signalRows.length);
+
+  function renderSignal(overrides: Partial<Parameters<typeof TrackView>[0]> = {}) {
+    return render(
+      <TrackView
+        sequence={null}
+        meta={signalMeta}
+        sites={signalRows}
+        attentionByKey={new Map()}
+        selectedKey={null}
+        onSelect={() => {}}
+        windowHalf={null}
+        {...overrides}
+      />,
+    );
+  }
+
+  it("draws one lane per signal type (ac4C appended), the whole transcript, and no flanks", () => {
+    renderSignal();
+    const root = screen.getByTestId("track-view");
+    expect(within(root).getAllByTestId("track-site")).toHaveLength(signalRows.length);
+    expect(within(root).getAllByTestId("track-lane").map((l) => l.getAttribute("data-mod-type"))).toEqual([
+      "m1A", "m5C", "m6A", "m7G", "Psi", "ac4C",
+    ]);
+    expect(within(root).queryAllByTestId("track-flank")).toHaveLength(0);
+    expect(within(root).getByTestId("track-range").textContent).toBe("1–900");
+  });
+
+  it("windowHalf=null hides the 51-nt bracket; the legend and tooltip speak of rates, CI and coverage", () => {
+    renderSignal({ selectedKey: "60:m6A:+" });
+    const win = screen.getByTestId("track-window");
+    expect(win).toHaveAttribute("data-bracket", "false");
+    expect(win.textContent).not.toMatch(/nt window/);
+    const legend = screen.getByTestId("track-legend").textContent!;
+    expect(legend).toMatch(/modification rate/);
+    expect(legend).not.toMatch(/Attention|Hatched|51-nt/);
+    const glyph = screen.getByTestId("track-view").querySelector('[data-key="60:m6A:+"]')!;
+    expect(glyph.getAttribute("aria-label")).toMatch(/m6A at position 60, rate 0\.806, coverage 36/);
+    fireEvent.pointerOver(glyph, { clientX: 300, clientY: 150 });
+    const tip = screen.getByTestId("track-tooltip").textContent!;
+    expect(tip).toMatch(/rate 0\.806/);
+    expect(tip).toMatch(/95% CI \[0\.\d{3}, 0\.\d{3}\]/);
+    expect(tip).toMatch(/coverage 36/);
+    expect(tip).toMatch(/modified reads 29/);
+    expect(tip).not.toMatch(/p-value/);
+  });
+
+  it("keeps the bracket for the sequence branch by default", () => {
+    renderGolden({ selectedKey: "52:Gm" });
+    expect(screen.getByTestId("track-window")).toHaveAttribute("data-bracket", "true");
+    expect(screen.getByTestId("track-window").textContent).toContain("51-nt window");
   });
 });

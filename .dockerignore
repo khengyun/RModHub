@@ -22,14 +22,22 @@ dist
 build
 
 # Tests and fixtures are not needed at runtime (the sample sequence is hard-coded in
-# app/api/samples.py; golden fixtures are consumed only by pytest).
+# app/api/samples.py; the signal sample lives in app/samples/signal and IS shipped).
 tests
 
 # The web UI has its own image (frontend/Dockerfile); keep node_modules out of this context.
 frontend
 
-# Deployment tooling (Caddy, compose, CI) and dev scripts are used outside the image.
+# The DirectRM worker has its own image and build context (worker/Dockerfile, py3.10,
+# 43 MB of weights); the subset/helper tools and the design docs are not runtime code.
+worker
+tools
+docs
+
+# Deployment tooling (Caddy, compose, CI) and dev scripts are used outside the image;
+# the api container entrypoint is the one file of deploy/ that ships (Dockerfile).
 deploy
+!deploy/api-entrypoint.py
 docker-compose*.yml
 Dockerfile
 .dockerignore
@@ -54,3 +62,4 @@ scratch
 data
 *.log
 .DS_Store
+!app/samples/signal/README.md

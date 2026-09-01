@@ -1,0 +1,20 @@
+# Build context for worker/Dockerfile. Anything listed here never reaches the image.
+
+# Local environments and caches
+.venv
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+*.egg-info
+
+# Tests and fixtures are consumed only by pytest.
+tests
+
+# Maintainer tooling (the vendoring script needs a DirectRM clone, not the image).
+scripts
+
+# VCS / editor / agent metadata
+.git
+.gitignore
+.DS_Store

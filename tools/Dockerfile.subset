@@ -1,0 +1,59 @@
+# syntax=docker/dockerfile:1
+# rmodhub/subset:local - standalone image for tools/subset_pod5.py
+#
+#   docker build -f tools/Dockerfile.subset -t rmodhub/subset:local tools
+#   docker run --rm -v "$PWD:/data" rmodhub/subset:local \
+#       -i /data/big.pod5 -b /data/in.bam -r /data/reg.csv -o /data/small.pod5 --bam-out /data/small.bam
+#
+# pod5 is pinned to 0.3.35 on purpose: it writes the POD5 v5 read-table schema, which every
+# pod5 reader opens (older 0.3.x readers reject the v6 schema that pod5 >= 0.3.46 writes:
+# "Schema field 'channel' ... uint32"). The RModHub worker (lib-pod5 0.3.47) reads v5 and v6.
+FROM python:3.12-slim
+
+ARG POD5_VERSION=0.3.35
+ARG PYSAM_VERSION=0.24.0
+ARG NUMPY_VERSION=2.3.5
+ARG PYARROW_VERSION=22.0.0
+
+LABEL org.opencontainers.image.title="rmodhub/subset" \
+      org.opencontainers.image.description="Extract the reads overlapping DirectRM regions from a large POD5 (+ matching BAM) for upload to RModHub" \
+      org.opencontainers.image.source="https://github.com/khaangnguyeen/RModHub" \
+      org.opencontainers.image.licenses="MIT"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_ROOT_USER_ACTION=ignore
+
+# --no-deps: pod5 declares polars, h5py, vbz_h5py_plugin and tqdm for its fast5 converter and
+# CLI only; the read/write API needs lib-pod5 + pyarrow + numpy and four tiny helpers.
+# Afterwards drop what the tool never loads: pyarrow's Flight/cloud-fs extensions, C headers,
+# test suites, numpy's f2py, and pip itself (the image is single-purpose and non-root).
+RUN pip install --no-deps \
+        "pod5==${POD5_VERSION}" "lib-pod5==${POD5_VERSION}" "pysam==${PYSAM_VERSION}" \
+        "numpy==${NUMPY_VERSION}" "pyarrow==${PYARROW_VERSION}" \
+        "iso8601==2.1.0" "more-itertools==11.1.0" "pytz==2026.3.post1" "packaging==26.3" \
+        "deprecated==1.2.18" "wrapt==2.4.0" \
+    && SP="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" \
+    && rm -rf "$SP"/pyarrow/libarrow_flight* "$SP"/pyarrow/_flight* \
+              "$SP"/pyarrow/_gcsfs* "$SP"/pyarrow/_s3fs* "$SP"/pyarrow/_azurefs* "$SP"/pyarrow/_hdfs* \
+              "$SP"/pyarrow/_parquet_encryption* "$SP"/pyarrow/include "$SP"/pysam/include \
+              "$SP"/numpy/f2py \
+    && find "$SP" -type d \( -name tests -o -name __pycache__ \) -prune -exec rm -rf {} + \
+    && python -c "import pod5, pysam, numpy, pyarrow; print('pod5', pod5.__version__, 'pysam', pysam.__version__)" \
+    && pip uninstall -y pip \
+    && find /usr/local/lib/python3.12 -type d -name __pycache__ -prune -exec rm -rf {} + \
+    && rm -rf /root/.cache /tmp/*
+
+COPY --chmod=0755 subset_pod5.py /opt/subset_pod5.py
+
+# uid/gid 1000 matches the usual first desktop user, so files written into a bind mount are
+# owned by the caller; override with `docker run --user "$(id -u):$(id -g)"` when it differs.
+RUN useradd --uid 1000 --user-group --no-create-home --shell /usr/sbin/nologin subset \
+    && mkdir -p /data && chown 1000:1000 /data
+USER subset
+WORKDIR /data
+
+ENTRYPOINT ["python", "/opt/subset_pod5.py"]
+CMD ["--help"]

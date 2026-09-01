@@ -1,8 +1,8 @@
 """Shared Pydantic schemas.
 
-`ModSite` is the contract shared by BOTH input branches (sequence / MultiRM today,
-nanopore signal / DirectRM later). Do not change its field set without updating the
-signal branch design notes in README.
+`ModSite` is the contract shared by BOTH input branches (sequence / MultiRM and
+nanopore signal / DirectRM, see app/jobs/schemas.py::SignalSite). Do not change its field
+set; docs/signal-branch.md depends on it.
 """
 
 from __future__ import annotations
@@ -157,3 +157,6 @@ class HealthResponse(BaseModel):
     model_loaded: bool
     uptime_s: float
     version: str = Field(description="RModHub server version.")
+    signal_enabled: bool = Field(
+        default=False, description="Nanopore signal branch (job API, DirectRM worker) enabled."
+    )

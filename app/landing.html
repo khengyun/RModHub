@@ -16,11 +16,14 @@
 </head>
 <body>
 <h1>RModHub</h1>
-<p>RNA modification site prediction web server.</p>
-<p>Paste an RNA (or DNA) sequence and RModHub scores every position for 12 modification
-types (Am, Cm, Gm, Um, m1A, m5C, m5U, m6A, m6Am, m7G, &Psi;, A-to-I) with the MultiRM
-deep-learning model, returning the sites whose empirical p-value passes your threshold.
-The sequence branch is live; a nanopore signal branch (DirectRM) is planned.</p>
+<p>RNA modification site prediction web server. Two ways in, one result table.</p>
+<p><strong>Sequence.</strong> Paste an RNA (or DNA) sequence and RModHub scores every position for
+12 modification types (Am, Cm, Gm, Um, m1A, m5C, m5U, m6A, m6Am, m7G, &Psi;, A-to-I) with the
+MultiRM deep-learning model, returning the sites whose empirical p-value passes your threshold.</p>
+<p><strong>Nanopore signal.</strong> Upload direct-RNA reads (a pod5 file plus the BAM produced by
+<code>dorado --emit-moves</code>, the reference FASTA and a regions CSV) and RModHub runs DirectRM
+per read and per site for ac4C, m1A, m5C, m6A, m7G and &Psi;. Jobs run in the background; the
+job id is the only key to the result. A synthetic sample data set is built in.</p>
 
 <h2>Try the API</h2>
 <p>Interactive documentation: <a href="/docs">/docs</a></p>
@@ -28,14 +31,43 @@ The sequence branch is live; a nanopore signal branch (DirectRM) is planned.</p>
   <li><code>POST /api/predict/sequence</code> &mdash; body <code>{"sequence": "...", "alpha": 0.05}</code>;
       add <code>?format=csv</code> to download the result table.</li>
   <li><code>GET /api/samples/sequence</code> &mdash; a ready-to-submit example sequence.</li>
+  <li><code>POST /api/jobs/signal</code> &mdash; multipart <code>pod5</code>, <code>bam</code>,
+      <code>reference</code>, <code>regions</code> (+ <code>kit</code>) &rarr; <code>202</code> with a job id;
+      or <code>POST /api/jobs/signal/init</code> for resumable (tus) uploads.</li>
+  <li><code>GET /api/jobs/{job_id}</code> &mdash; status and progress;
+      <code>GET /api/jobs/{job_id}/results</code> and <code>/download.csv</code> once done.</li>
+  <li><code>POST /api/jobs/signal/sample</code> and <code>GET /api/samples/signal</code> &mdash; the
+      synthetic nanopore sample.</li>
+  <li><code>GET /api/capabilities</code> &mdash; which branches this server enables, its upload limits
+      and the retention periods below.</li>
 </ul>
 <p>Also: <code>GET /health</code> for server and model status.</p>
 
-<h2>License</h2>
-<p>RModHub server code: MIT. Model: MultiRM (Song et al. 2021, <em>Nature Communications</em>)
-&mdash; MIT, <a href="https://github.com/Tsedao/MultiRM">https://github.com/Tsedao/MultiRM</a>.</p>
+<h2>License and credits</h2>
+<p>RModHub server code: MIT.</p>
+<ul>
+  <li>Sequence model: MultiRM (Song et al. 2021, <em>Nature Communications</em>) &mdash; MIT,
+      <a href="https://github.com/Tsedao/MultiRM">https://github.com/Tsedao/MultiRM</a>.</li>
+  <li>Signal model: DirectRM (Zhang et al. 2025, <em>Nature Communications</em> 16:9450,
+      <a href="https://doi.org/10.1038/s41467-025-64495-8">doi:10.1038/s41467-025-64495-8</a>) &mdash; MIT,
+      &copy; 2025 Yuxin Zhang, <a href="https://github.com/yuxinPenny/DirectRM">https://github.com/yuxinPenny/DirectRM</a>,
+      run unmodified inside the worker.</li>
+  <li>k-mer level tables (<code>5mer_levels_v1.txt</code>, <code>9mer_levels_v1.txt</code>) come from
+      Oxford Nanopore Technologies' <code>kmer_models</code> &mdash; Mozilla Public License 2.0.</li>
+  <li>Signal-to-reference alignment uses ONT Remora, distributed under the Oxford Nanopore
+      Technologies Public License 1.0, which permits <strong>research use only</strong>. Use the signal
+      branch for non-commercial research purposes accordingly.</li>
+</ul>
 <p>No login required; no cookies are set.</p>
 
-<footer>Submitted sequences are processed in memory and are not stored.</footer>
+<footer>
+<p><strong>Your data.</strong> Pasted sequences are processed in memory and are never written to disk.
+Nanopore uploads are stored on this server only for as long as processing needs them: the pod5 and
+BAM files are deleted as soon as feature extraction has finished (and in any case within
+{{inputs_max_age_h}} hours of upload); job results are kept for {{results_retention_days}} days after
+completion and then deleted. Unfinished uploads expire after {{upload_ttl_h}} hours. Client addresses
+are stored only as a keyed hash used for fair-use limits. There are no accounts: anyone with a job id
+can view that job's results.</p>
+</footer>
 </body>
 </html>

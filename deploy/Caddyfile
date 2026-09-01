@@ -6,17 +6,13 @@
 #
 # Everything goes to the `web` container (nginx), which serves the React UI and forwards
 # /api, /health, /docs, /openapi.json and /static to `api` (see frontend/nginx.conf).
+#
+# Body limits are per path and written in binary units (MiB/GiB: `64MB` would be
+# 64,000,000 bytes, smaller than nginx's `64m`). Caddy streams request bodies to the
+# upstream, so only `max_size` and the transport timeouts matter for uploads.
 
 {$RMODHUB_DOMAIN} {
 	encode zstd gzip
-
-	# Phase 1 accepts JSON bodies of at most ~10 kb (RMODHUB_MAX_SEQUENCE_NT=10000 nt).
-	# 1 MB bounds abuse while leaving room for headers/JSON overhead (nginx enforces the
-	# same limit). The phase-2 nanopore upload route (BAM + move table, hundreds of MB)
-	# will need its own `handle /api/jobs/*` block with a much larger limit.
-	request_body {
-		max_size 1MB
-	}
 
 	header {
 		X-Content-Type-Options nosniff
@@ -28,14 +24,59 @@
 		-Server
 	}
 
-	# `web` resolves via the compose network. Caddy sets X-Forwarded-For/-Proto/-Host;
-	# nginx passes them on and uvicorn runs with --proxy-headers, so FastAPI sees the
-	# original https scheme. nginx adds the SPA's Content-Security-Policy itself.
-	reverse_proxy web:80 {
-		# Model inference on a 10 kb input can take tens of seconds on a small CPU box
-		# (nginx's own proxy_read_timeout is 180 s).
-		transport http {
-			response_header_timeout 120s
+	# Resumable (tus) upload chunks: the browser sends 16 MiB, the api accepts up to
+	# RMODHUB_TUS_CHUNK_MB (64) and nginx up to 64m; keep all three in step.
+	handle /api/uploads/* {
+		request_body {
+			max_size 64MiB
+		}
+		reverse_proxy web:80 {
+			transport http {
+				dial_timeout 5s
+				read_timeout 600s
+				write_timeout 600s
+				response_header_timeout 600s
+			}
+		}
+	}
+
+	# One-shot multipart job submission (pod5 + BAM + reference + regions). The api
+	# rejects an over-cap Content-Length up front and enforces the per-file caps
+	# (RMODHUB_MAX_POD5_GB / _BAM_GB / _REFERENCE_MB) while streaming; this is only the
+	# outer bound for the whole request and must stay >= the api's total (pod5 + BAM +
+	# reference + 64 MiB regions + 16 MiB framing = ~10.6 GiB with the defaults), or a
+	# request the api would accept dies here with a bare 413 after the transfer. Raise
+	# RMODHUB_MULTIPART_MAX_SIZE (.env -> docker-compose.prod.yml) together with the caps.
+	handle /api/jobs/signal {
+		request_body {
+			max_size {$RMODHUB_MULTIPART_MAX_SIZE:11GiB}
+		}
+		reverse_proxy web:80 {
+			transport http {
+				dial_timeout 5s
+				read_timeout 600s
+				write_timeout 600s
+				response_header_timeout 600s
+			}
+		}
+	}
+
+	# Everything else: the sequence branch accepts ~10 kb JSON bodies
+	# (RMODHUB_MAX_SEQUENCE_NT=10000 nt); 1 MiB bounds abuse while leaving room for
+	# headers/JSON overhead (nginx enforces the same limit).
+	handle {
+		request_body {
+			max_size 1MiB
+		}
+		# `web` resolves via the compose network. Caddy sets X-Forwarded-For/-Proto/-Host;
+		# nginx passes them on and uvicorn runs with --proxy-headers, so FastAPI sees the
+		# original https scheme. nginx adds the SPA's Content-Security-Policy itself.
+		reverse_proxy web:80 {
+			# Model inference on a 10 kb input can take tens of seconds on a small CPU box
+			# (nginx's own proxy_read_timeout is 180 s).
+			transport http {
+				response_header_timeout 120s
+			}
 		}
 	}
 

@@ -2,7 +2,7 @@
  * User guide for wet-lab users. The anchor ids are part of the UI contract (other
  * components and the E2E tests link to them): quick-start, input, reading-results,
  * flanks, mod-types, multiple-mods, track-view, table-and-csv, limits, citation,
- * privacy, phase2.
+ * privacy, nanopore-signal (with the signal-* sub-anchors listed in SIGNAL_SUBSECTIONS).
  */
 import { useEffect, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -10,13 +10,22 @@ import type { ModType } from "../api/types";
 import {
   CITATION,
   CITATION_TEXT,
+  DIRECTRM_CITATION,
+  DIRECTRM_CITATION_TEXT,
+  DIRECTRM_COMMIT,
+  DIRECTRM_COPYRIGHT,
+  DIRECTRM_MODEL_NAME,
+  DIRECTRM_PAPER_URL,
+  DIRECTRM_REPO_URL,
   MIT_LICENSE_URL,
   MODEL_COPYRIGHT,
   MULTIRM_REPO_URL,
   PAPER_URL,
 } from "../components/layout/about";
+import { uploadTtlHours, useCapabilities } from "../components/layout/CapabilitiesProvider";
 import { ExtLink } from "../components/layout/ExtLink";
-import { MOD_TYPE_LIST } from "../lib/modTypes";
+import { SUBSET_DOCKER_COMMAND } from "../components/signal/uploadModel";
+import { MOD_TYPE_LIST, modTypeInfo, SIGNAL_MOD_TYPES } from "../lib/modTypes";
 import { FLANK_NT, MAX_NT, MIN_NT } from "../lib/sequence";
 
 const WINDOW_NT = 2 * FLANK_NT + 1; // 51
@@ -36,11 +45,39 @@ const SECTIONS = [
   { id: "table-and-csv", title: "The table and the CSV file" },
   { id: "limits", title: "Limits and run time" },
   { id: "citation", title: "How to cite" },
-  { id: "privacy", title: "Privacy: no account, no cookies, nothing stored" },
-  { id: "phase2", title: "Coming in phase 2: nanopore signal" },
+  { id: "privacy", title: "Privacy: no account, no cookies, sequences not stored" },
+  { id: "nanopore-signal", title: "Nanopore signal branch (DirectRM)" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
+
+/** Sub-anchors of the nanopore-signal section (linked from the upload and result pages). */
+export const SIGNAL_SUBSECTIONS = [
+  { id: "signal-files", title: "The four input files and how to produce them" },
+  { id: "signal-regions", title: "The regions CSV" },
+  { id: "signal-subset", title: "My pod5 is too big: the subset tool" },
+  { id: "signal-coverage", title: "Coverage: why 30 reads matter" },
+  { id: "signal-results", title: "Reading rate, confidence interval and count" },
+  { id: "signal-reads", title: "Read-level drill-down" },
+  { id: "signal-jobs", title: "Jobs: stages, limits, cancel, bookmark" },
+  { id: "signal-data", title: "What happens to your files" },
+  { id: "signal-sample", title: "The sample data (synthetic)" },
+  { id: "signal-citation", title: "Citing DirectRM and its components" },
+] as const;
+
+type SignalSubId = (typeof SIGNAL_SUBSECTIONS)[number]["id"];
+
+function Sub({ id, children }: { id: SignalSubId; children: ReactNode }) {
+  const title = SIGNAL_SUBSECTIONS.find((s) => s.id === id)?.title ?? id;
+  return (
+    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-6 space-y-2 pt-2">
+      <h3 id={`${id}-title`} className="font-semibold text-slate-800">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
 
 const FULL_NAME: Record<ModType, string> = {
   Am: "2′-O-methyladenosine",
@@ -156,12 +193,23 @@ const CSV_COLUMNS: { name: string; meaning: string }[] = [
   { name: "mod_type", meaning: "One of the 12 symbols in the table above, spelled as in the CSV column (“Psi”, “AtoI”)." },
   { name: "probability", meaning: "The model’s output for that type at that position, between 0 and 1." },
   { name: "p_value", meaning: `Empirical p-value against the ${N_BACKGROUND} background sequences (multiples of 1/${N_BACKGROUND}); 0 means “< ${P_RESOLUTION}”.` },
-  { name: "coverage", meaning: "Empty in the sequence branch. The nanopore branch will report read depth here." },
-  { name: "source", meaning: "“sequence” for this branch; the nanopore branch will write “signal”." },
+  { name: "coverage", meaning: "Empty in the sequence branch. The nanopore signal branch writes the number of reads that received a score at the base." },
+  { name: "source", meaning: "“sequence” for the sequence branch, “signal” for the nanopore signal branch." },
+];
+
+const SIGNAL_CSV_COLUMNS: { name: string; meaning: string }[] = [
+  { name: "transcript_id … source", meaning: "The same seven columns as above, in the same order (probability = modification rate, p_value empty, coverage filled, source = “signal”)." },
+  { name: "strand", meaning: "Strand of the region the site belongs to (from your regions CSV)." },
+  { name: "count", meaning: "Reads whose per-read probability for this type is above 0.5 (“modified reads”)." },
+  { name: "ci_low, ci_high", meaning: "95 % Wilson score interval of count / coverage." },
+  { name: "max_prob, noisyor_prob", meaning: "Alternative per-site summaries DirectRM computes from the same per-read probabilities (maximum, and the noisy-OR combination). Informational." },
 ];
 
 export function HelpPage() {
   const { hash } = useLocation();
+  const { capabilities } = useCapabilities();
+  const { limits, retention } = capabilities;
+  const uploadTtlH = uploadTtlHours(capabilities);
 
   // Scroll to the anchor when the page is opened with /help#section from a client-side link.
   useEffect(() => {
@@ -175,9 +223,10 @@ export function HelpPage() {
       <header className="max-w-3xl">
         <h1 className="text-2xl font-semibold text-brand-800">Help: using RModHub and reading its results</h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          RModHub predicts RNA modification sites from a nucleotide sequence with the MultiRM model.
-          This page explains what the numbers mean, where the model cannot look, and how to turn a
-          list of predicted sites into something you can test at the bench.
+          RModHub predicts RNA modification sites from a nucleotide sequence with the MultiRM model
+          (sections 1–11) and calls them from the raw signal of Oxford Nanopore direct-RNA reads
+          with DirectRM (section 12). This page explains what the numbers mean, where each model
+          cannot look, and how to turn a list of sites into something you can test at the bench.
         </p>
       </header>
 
@@ -427,10 +476,11 @@ export function HelpPage() {
             10–30 % on long inputs.
           </li>
           <li>
-            There is no batch mode or job queue in this phase; for many sequences, call{" "}
+            The sequence branch has no batch mode; for many sequences, call{" "}
             <Code>POST /api/predict/sequence</Code> from a script (see{" "}
             <a href="/docs" className="text-brand-600 underline underline-offset-2">API docs</a>), one
-            sequence per call. Request bodies above 1 MB are refused.
+            sequence per call. Request bodies above 1 MB are refused. (Only the nanopore signal
+            branch uses a job queue, see <HelpLink to="nanopore-signal">below</HelpLink>.)
           </li>
           <li>
             The model only sees sequence. It has no notion of tissue, condition, isoform or expression
@@ -469,7 +519,8 @@ export function HelpPage() {
           <li>
             Sequences are processed in memory and are <strong>not stored</strong>. The application log
             records only the input length, alpha, the number of sites and the timing of each request,
-            never the sequence.
+            never the sequence. Nanopore uploads necessarily live on the server while the job runs;
+            see <a href="#signal-data" className="text-brand-600 underline underline-offset-2">what happens to your files</a>.
           </li>
           <li>
             The web server keeps a standard access log (client address, request path, status, time)
@@ -479,28 +530,341 @@ export function HelpPage() {
         </Ul>
       </Section>
 
-      <Section id="phase2">
-        <p>
-          The sequence branch predicts from sequence alone. The planned{" "}
-          <Link to="/signal" className="text-brand-600 underline underline-offset-2">nanopore signal branch</Link>{" "}
-          will call modifications from Oxford Nanopore direct-RNA reads with the DirectRM model,
-          i.e. from the measured molecules in your sample rather than from what the sequence looks like.
+      <Section id="nanopore-signal" wide>
+        <p className="max-w-3xl">
+          The{" "}
+          <Link to="/signal" className="text-brand-600 underline underline-offset-2">Nanopore signal</Link>{" "}
+          page calls modifications from what was actually measured in your sample rather than from
+          what the sequence looks like. It runs{" "}
+          <ExtLink href={DIRECTRM_REPO_URL}>{DIRECTRM_MODEL_NAME}</ExtLink> (Zhang <i>et al.</i>, 2025)
+          unmodified on a background worker: for every read that covers one of your regions, the raw
+          current is aligned to the basecalled sequence (Remora), k-mer signal features are extracted,
+          and a neural network scores each base of each read for m6A, m5C, m1A, m7G, Ψ and ac4C.
+          Per-read calls are then summarised per site as a <em>rate</em> with a confidence interval.
+          Because the input is large and a run takes minutes, the analysis is a <em>job</em> with its
+          own result page. The tab only appears when the server operator has enabled this branch.
         </p>
-        <Ul>
-          <li>
-            <strong>Input:</strong> a BAM file of basecalled reads with the basecaller’s move table,
-            uploaded on the Nanopore signal page. Uploads are large, so a run becomes an asynchronous job.
-          </li>
-          <li>
-            <strong>Jobs:</strong> after the upload you get a job id and a result page{" "}
-            (<Code>/result/{"{job_id}"}</Code>) that refreshes itself until the job is done; you can bookmark it.
-          </li>
-          <li>
-            <strong>Output:</strong> the same rows as this branch, with <Code>transcript_id</Code> and{" "}
-            <Code>coverage</Code> (read depth) filled in and <Code>source = "signal"</Code>, shown in the
-            same table and track view and downloadable as the same CSV.
-          </li>
-        </Ul>
+        <nav aria-label="Nanopore signal subsections" className="max-w-3xl text-xs text-slate-600">
+          <ol className="grid list-decimal gap-x-6 gap-y-0.5 pl-5 sm:grid-cols-2">
+            {SIGNAL_SUBSECTIONS.map((sub) => (
+              <li key={sub.id}>
+                <a href={`#${sub.id}`} className="text-brand-600 hover:underline">
+                  {sub.title}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+
+        <div className="max-w-3xl space-y-6">
+          <Sub id="signal-files">
+            <Ol>
+              <li>
+                <strong>pod5</strong> — the raw signal, as written by MinKNOW (RNA004 or RNA002 kit;
+                choose the kit on the upload page). Several pod5 files can be merged with{" "}
+                <Code>pod5 merge</Code>; only reads overlapping your regions are needed.
+              </li>
+              <li>
+                <strong>BAM with move table, aligned</strong> — basecall <em>and</em> align in one
+                dorado run so that each read keeps its <Code>mv</Code> tag (the signal-to-base
+                alignment DirectRM needs), then sort:
+                <pre className="mt-1 overflow-x-auto rounded bg-slate-900 px-3 py-2 font-mono text-xs leading-5 text-slate-100">
+                  <code>{`dorado basecaller <model> pod5/ --emit-moves --reference ref.fa | samtools sort -o input_sorted.bam
+samtools index input_sorted.bam`}</code>
+                </pre>
+                A BAM basecalled <em>without</em> <Code>--emit-moves</Code>, or aligned separately with
+                minimap2 (which drops the tag), fails in the <em>preparing</em> stage (before any signal
+                is read) with a clear message. The index (<Code>.bai</Code>) is rebuilt on the server,
+                you do not upload it.
+              </li>
+              <li>
+                <strong>Reference FASTA</strong> — exactly the file the reads were aligned to
+                (<Code>.fa</Code> or <Code>.fasta</Code>, uncompressed). Transcript names must match
+                the BAM and the regions CSV character for character.
+              </li>
+              <li>
+                <strong>Regions CSV</strong> — which transcripts, coordinates and strands to score; see
+                the next section.
+              </li>
+            </Ol>
+          </Sub>
+
+          <Sub id="signal-regions">
+            <p>
+              DirectRM scores regions, not whole genomes: sampling up to 150 reads per region keeps a
+              job within minutes and makes coverage explicit. The file is a comma-separated table with
+              a header line and these columns:
+            </p>
+            <pre className="overflow-x-auto rounded bg-slate-900 px-3 py-2 font-mono text-xs leading-5 text-slate-100">
+              <code>{`seqnames,start,end,width,strand
+tx_A,1,1200,1200,+
+tx_B,101,900,800,+`}</code>
+            </pre>
+            <Ul>
+              <li>
+                <strong>Coordinates are 1-based and inclusive</strong> (like a GFF or a genome
+                browser, not like BED): <Code>start = 1</Code> is the first base, and{" "}
+                <Code>width = end − start + 1</Code>.
+              </li>
+              <li>
+                <strong>strand</strong> is <Code>+</Code> or <Code>−</Code> and must match the
+                alignment orientation of the reads you want scored (direct-RNA reads normally align to
+                the transcript's + strand).
+              </li>
+              <li>
+                <strong>The first base of a region is never scored</strong>: DirectRM's k-mer window
+                starts at the second base. Start regions one base early if the very first position
+                matters.
+              </li>
+              <li>
+                Up to {limits.max_regions.toLocaleString("en-US")} data rows; regions with 30 reads or
+                fewer are skipped (see coverage below), regions with 150 reads or more are randomly
+                subsampled to 150.
+              </li>
+            </Ul>
+          </Sub>
+
+          <Sub id="signal-subset">
+            <p>
+              A whole-run pod5 is often tens of gigabytes, far above the {limits.max_pod5_gb} GB upload
+              limit, while the reads in a few regions are a few megabytes. The subset tool in the
+              RModHub repository (<Code>tools/</Code>) keeps only the reads that overlap your regions and
+              writes a small pod5 plus the matching BAM. It runs locally in Docker (build the image from
+              the repository; nothing is downloaded from a third party):
+            </p>
+            <pre className="overflow-x-auto rounded bg-slate-900 px-3 py-2 font-mono text-xs leading-5 text-slate-100">
+              <code>{SUBSET_DOCKER_COMMAND}</code>
+            </pre>
+            <p>
+              <Code>-i</Code> the big pod5 (or a directory), <Code>-b</Code> the sorted, indexed BAM with
+              move tables, <Code>-r</Code> the regions CSV you will upload, <Code>-o</Code> /{" "}
+              <Code>--bam-out</Code> the files to upload. <strong>Size estimate:</strong> the subset is
+              roughly <em>pod5 size × (reads in your regions ÷ reads in the run)</em>; the upload page has
+              a small calculator for this. <Code>samtools view -c in.bam</Code> counts all reads and{" "}
+              <Code>samtools view -c -L regions.bed in.bam</Code> the reads in your regions.
+            </p>
+          </Sub>
+
+          <Sub id="signal-coverage">
+            <Ul>
+              <li>
+                <strong>More than 30 reads per region are required.</strong> DirectRM's sampling step
+                drops any region with 30 reads or fewer before extracting features; the summary line
+                of the result page reports how many regions were skipped for this reason.
+              </li>
+              <li>
+                <strong>Coverage</strong> in the table is the number of reads that received a score at
+                that base for that modification type — fewer than the raw read depth, because reads
+                that are soft-clipped, poorly aligned or failed signal refinement at that base do not
+                count.
+              </li>
+              <li>
+                <strong>Sites with coverage below 30 are flagged as unreliable</strong> (yellow notice
+                and the Coverage column): the rate rests on a handful of per-read calls and its
+                confidence interval is wide. Sort by coverage and inspect the read-level calls before
+                drawing conclusions.
+              </li>
+            </Ul>
+          </Sub>
+
+          <Sub id="signal-results">
+            <p>
+              Each row of a signal result is one <em>(transcript, position, strand, modification
+              type)</em> with:
+            </p>
+            <Ul>
+              <li>
+                <strong>Rate</strong> (shown in the Probability column and as glyph height in the
+                track view) = <em>count ÷ coverage</em>, the fraction of scored reads called modified at
+                that base. It is an estimate of the modification stoichiometry in your sample, not a
+                confidence that the site is modified at all.
+              </li>
+              <li>
+                <strong>95 % CI</strong> = Wilson score interval of that fraction. With 40 reads a rate
+                of 0.50 comes with an interval of about 0.35–0.65; with 12 reads the same rate spans
+                0.25–0.75. Two sites whose intervals overlap should not be called "different".
+              </li>
+              <li>
+                <strong>Count</strong> (Modified reads) = reads whose per-read probability for this type
+                is above 0.5.
+              </li>
+              <li>
+                <strong>p-value</strong> is empty: DirectRM has no background model. Use coverage and the
+                interval width instead.
+              </li>
+            </Ul>
+            <p>
+              Several types at one position are possible (each type is a separate classifier reading
+              the same signal); check the base first, as for the sequence branch, and prefer the type
+              whose interval is narrow and far from zero.
+            </p>
+            <div className="overflow-x-auto rounded border border-slate-200 bg-white">
+              <table className="w-full min-w-[36rem] text-left text-sm">
+                <caption className="sr-only">Modification types called by DirectRM</caption>
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                  <tr>
+                    <th scope="col" className="px-3 py-2">Symbol</th>
+                    <th scope="col" className="px-3 py-2">In CSV</th>
+                    <th scope="col" className="px-3 py-2">Base</th>
+                    <th scope="col" className="px-3 py-2">What it is</th>
+                  </tr>
+                </thead>
+                <tbody data-testid="signal-mod-types">
+                  {SIGNAL_MOD_TYPES.map((id) => {
+                    const m = modTypeInfo(id);
+                    return (
+                      <tr key={id} className="border-t border-slate-100 align-top">
+                        <td className="whitespace-nowrap px-3 py-2 font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                              <rect width="12" height="12" rx="2" fill={m.color} />
+                            </svg>
+                            {m.label}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs">{m.id}</td>
+                        <td className="px-3 py-2 font-mono">{m.base}</td>
+                        <td className="px-3 py-2 text-slate-600">{m.description}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p>
+              <strong>CSV.</strong> <em>Download CSV</em> on a result page (or{" "}
+              <Code>GET /api/jobs/&#123;job_id&#125;/download.csv?level=site</Code>) writes the shared seven
+              columns followed by the signal-specific ones:
+            </p>
+            <div className="overflow-x-auto rounded border border-slate-200 bg-white">
+              <table className="w-full min-w-[36rem] text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                  <tr>
+                    <th scope="col" className="px-3 py-2">Column</th>
+                    <th scope="col" className="px-3 py-2">Meaning</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SIGNAL_CSV_COLUMNS.map((c) => (
+                    <tr key={c.name} className="border-t border-slate-100 align-top">
+                      <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{c.name}</td>
+                      <td className="px-3 py-2 text-slate-600">{c.meaning}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Sub>
+
+          <Sub id="signal-reads">
+            <p>
+              Select a site in the table or the track view and a <strong>read-level panel</strong>{" "}
+              opens below the table: one row per read that was scored at that base, with the read id,
+              strand, the model's per-read probability and whether it counted as modified (&gt; 0.5).
+              This is the evidence behind the rate: a site whose reads sit near 0.5 is weaker than one
+              whose reads are split between 0.05 and 0.95. The panel is paged; download the loaded page
+              as CSV, or <em>all</em> read-level calls of the job (<Code>download.csv?level=read</Code>;
+              columns read_id, transcript_id, position, strand, mod_type, probability, source).
+            </p>
+          </Sub>
+
+          <Sub id="signal-jobs">
+            <Ul>
+              <li>
+                <strong>Stages</strong>, in order: uploading → preparing (BAM index, checks) → sampling
+                reads → extracting features (the longest) → de novo screen → inference → aggregating.
+                The result page shows the current stage with a one-line explanation, a progress bar
+                for the stage and an estimated time when one is available.
+              </li>
+              <li>
+                <strong>Limits:</strong> {limits.max_running_per_ip} running and {limits.max_queued_per_ip}{" "}
+                queued jobs per network address; a job is stopped after {limits.job_timeout_h} h. Jobs
+                run one at a time on a single CPU worker, so a queue position can mean a wait.
+              </li>
+              <li>
+                <strong>Cancel</strong> with the button on the result page; the worker stops between
+                stages (or immediately, when running) and the job's files are removed.
+              </li>
+              <li>
+                <strong>Bookmark the result page.</strong> The URL <Code>/result/&#123;job_id&#125;</Code>{" "}
+                is the <em>only</em> key to a job: there is no account and no e-mail. Anyone with the
+                link can view the results, so share it deliberately. The page refreshes itself while
+                the job runs (every 2–10 s); it shows <em>Expired</em> once the results have been
+                deleted and "unknown" for an id the server does not know.
+              </li>
+              <li>
+                <strong>Interrupted uploads</strong> retry by themselves for about two minutes after a
+                network hiccup (and wait while your browser is offline); after that, press{" "}
+                <em>Resume upload</em>. After a reload or on another day, pick the same four files again
+                and the page offers to resume the earlier upload (it remembers file name, size and
+                upload URL in your browser's local storage for at most {uploadTtlH} h, as long as the
+                server keeps the unfinished upload).
+              </li>
+            </Ul>
+          </Sub>
+
+          <Sub id="signal-data">
+            <Ul>
+              <li>Uploaded files are used only for your job and are never shared or reused.</li>
+              <li>
+                The pod5 and the BAM are deleted <strong>{retention.inputs_deleted}</strong>; the
+                reference and the regions file stay with the job until it is deleted.
+              </li>
+              <li>
+                Results (a per-job database with the site- and read-level calls) are kept for{" "}
+                <strong>{retention.results_days} days</strong> after the job finished, then deleted
+                together with everything else. Unfinished uploads expire after {uploadTtlH} h.
+              </li>
+              <li>
+                The server keeps a standard access log (client address, path, status, time) and hashes
+                the client address to enforce the per-address limits; raw addresses are not stored with
+                jobs.
+              </li>
+            </Ul>
+          </Sub>
+
+          <Sub id="signal-sample">
+            <p>
+              <em>Load sample data</em> on the Nanopore signal page queues a job on a small{" "}
+              <strong>synthetic</strong> data set that ships with the server (about 1.4 MB): RNA004-like
+              reads generated in silico for three transcripts — <Code>tx_A</Code> (40 reads),{" "}
+              <Code>tx_B</Code> (36 reads) and <Code>tx_C</Code> (12 reads, i.e. below the 30-read
+              threshold, so that region is skipped and the coverage filter is visible). It exercises
+              every stage end to end in well under a minute of worker time (plus any wait in the
+              queue). Because the reads are synthetic, the called
+              sites carry no biological meaning; use the sample to learn the interface, not to draw
+              conclusions. The four files can also be downloaded from the upload page.
+            </p>
+          </Sub>
+
+          <Sub id="signal-citation">
+            <p>If you use signal-branch results, please cite DirectRM:</p>
+            <blockquote className="border-l-4 border-brand-100 pl-3 text-slate-800">
+              {DIRECTRM_CITATION.authors} {DIRECTRM_MODEL_NAME}. <i>{DIRECTRM_CITATION.journal}</i>{" "}
+              {DIRECTRM_CITATION.volume}, {DIRECTRM_CITATION.article} ({DIRECTRM_CITATION.year}).{" "}
+              <ExtLink href={DIRECTRM_PAPER_URL}>doi:{DIRECTRM_CITATION.doi}</ExtLink>
+            </blockquote>
+            <p>
+              Plain text: <Code>{DIRECTRM_CITATION_TEXT}</Code>
+            </p>
+            <Ul>
+              <li>
+                Code and weights: <ExtLink href={DIRECTRM_REPO_URL}>{DIRECTRM_REPO_URL}</ExtLink> (MIT
+                License, {DIRECTRM_COPYRIGHT}), commit <Code>{DIRECTRM_COMMIT}</Code>, run unmodified.
+                Weights were re-saved for CPU without changing any value.
+              </li>
+              <li>
+                Signal-to-base alignment and k-mer level tables: Remora (Oxford Nanopore Technologies
+                Public License 1.0, <em>research use only</em>) and ONT <Code>kmer_models</Code>{" "}
+                (MPL-2.0). By using this branch you accept those terms for the corresponding components.
+              </li>
+              <li>
+                Please also give the web address of the server you used and the model version shown in
+                the result summary.
+              </li>
+            </Ul>
+          </Sub>
+        </div>
       </Section>
     </article>
   );

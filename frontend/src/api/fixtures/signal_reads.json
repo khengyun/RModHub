@@ -1,0 +1,290 @@
+{
+  "results": [
+    {
+      "read_id": "read-0008-c302c6",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.8451,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0022-17b244",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.8746,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0029-cd2a8d",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.8427,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0039-966b62",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.2425,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0005-638ba6",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.8523,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0030-380f76",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.7324,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0026-bc751e",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.7681,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0011-2d3fdd",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.9351,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0002-be15c2",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.723,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0038-5b5114",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.1258,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0031-4fd3d7",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.7331,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0027-eac7a9",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.9773,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0017-3daa3b",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.7478,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0013-b7daa8",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.7046,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0006-9301e8",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.8107,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0024-949e53",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.8369,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0037-a4c1fa",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.0787,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0040-14c222",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.3031,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0019-95409b",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.804,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0036-8223b6",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.1542,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0015-7cbf5b",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.6289,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0010-2e393f",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.5976,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0014-fb19d2",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.5674,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0003-011e56",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.8077,
+      "source": "signal"
+    },
+    {
+      "read_id": "read-0025-f20602",
+      "transcript_id": "tx_A",
+      "position": 101,
+      "strand": "+",
+      "mod_type": "m6A",
+      "probability": 0.9352,
+      "source": "signal"
+    }
+  ],
+  "meta": {
+    "source": "signal",
+    "job_id": "6f1d2c3a-9b8e-4c7d-a1b2-3c4d5e6f7a8b",
+    "model_name": "DirectRM",
+    "model_version": "bc7a085",
+    "kit": "RNA004",
+    "n_sites": 22,
+    "n_reads": 76,
+    "n_transcripts": 2,
+    "mod_types": [
+      "ac4C",
+      "m1A",
+      "m5C",
+      "m6A",
+      "m7G",
+      "Psi"
+    ],
+    "low_coverage_threshold": 30,
+    "transcripts": [
+      {
+        "transcript_id": "tx_A",
+        "length": 1200,
+        "n_reads": 40,
+        "n_sites": 14
+      },
+      {
+        "transcript_id": "tx_B",
+        "length": 900,
+        "n_reads": 36,
+        "n_sites": 8
+      }
+    ],
+    "extra": {
+      "model_name": "DirectRM",
+      "model_version": "bc7a085",
+      "kit": "RNA004",
+      "directrm_commit": "bc7a08573dfe7629e808256fa6ade6e4111ed1f9",
+      "remora_version": "3.2.0",
+      "torch_version": "2.8.0+cpu",
+      "n_reads_sampled": 76,
+      "n_reads_features": 76,
+      "n_kmers": 3648,
+      "denovo_frac_modified": 0.1834,
+      "regions_total": 3,
+      "regions_skipped_low_coverage": 1,
+      "regions_subsampled": 0,
+      "min_coverage": 30,
+      "max_coverage": 150,
+      "stage_seconds": {
+        "preparing": 2.1,
+        "sampling": 3.4,
+        "features": 98.7,
+        "denovo": 12.2,
+        "inference": 41.0,
+        "aggregating": 6.9
+      }
+    }
+  },
+  "total": 40,
+  "offset": 0,
+  "limit": 25
+}

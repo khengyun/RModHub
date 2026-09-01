@@ -1,0 +1,4 @@
+seqnames,start,end,width,strand
+tx_A,60,300,241,+
+tx_B,80,320,241,+
+tx_C,50,250,201,+
