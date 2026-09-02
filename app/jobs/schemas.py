@@ -188,11 +188,36 @@ class Retention(BaseModel):
     results_days: int = 14
 
 
+class SequenceModelInfo(BaseModel):
+    """One sequence-branch back-end this deployment loaded."""
+
+    id: str = Field(description="Value to send in `models` of POST /api/predict/sequence.")
+    label: str = Field(description="Human-readable name for the picker.")
+    description: str
+    default: bool = Field(description="True for the model used when a request names none.")
+    name: str = Field(description="Model name the back-end reports (meta.model_name).")
+    version: str = Field(description="Model version the back-end reports (meta.model_version).")
+    min_sequence_nt: int = Field(
+        description="Shortest input this model can score (its window size)."
+    )
+    max_sequence_nt: int | None = Field(
+        default=None,
+        description=(
+            "Longest input this model accepts, when it is stricter than the server's own "
+            "RMODHUB_MAX_SEQUENCE_NT; null when only the server limit applies."
+        ),
+    )
+
+
 class Capabilities(BaseModel):
     sequence: bool = True
     signal: bool
     limits: Limits
     retention: Retention
+    sequence_models: list[SequenceModelInfo] = Field(
+        default_factory=list,
+        description="Sequence models this deployment loaded; the first one is the default.",
+    )
 
 
 # ----------------------------------------------------------------------------------- sample

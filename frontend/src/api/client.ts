@@ -119,10 +119,18 @@ export async function predictSequenceCsv(req: PredictRequest, signal?: AbortSign
   return await res.blob();
 }
 
-export async function getSample(signal?: AbortSignal): Promise<SampleResponse> {
-  const res = await fetch("/api/samples/sequence", { signal });
+export async function getSample(name?: string, signal?: AbortSignal): Promise<SampleResponse> {
+  const url = name ? `/api/samples/sequence?name=${encodeURIComponent(name)}` : "/api/samples/sequence";
+  const res = await fetch(url, { signal });
   if (!res.ok) throw await toApiError(res);
   return (await res.json()) as SampleResponse;
+}
+
+/** Every example sequence, sequences included; the first entry is the server default. */
+export async function getSampleCatalog(signal?: AbortSignal): Promise<SampleResponse[]> {
+  const res = await fetch("/api/samples/sequence/catalog", { signal });
+  if (!res.ok) throw await toApiError(res);
+  return (await res.json()) as SampleResponse[];
 }
 
 /* ----------------------------------------------------------------------------------------

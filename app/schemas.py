@@ -106,6 +106,15 @@ class PredictSequenceRequest(BaseModel):
             "each reported site (for visualisation). Adds ~10-30% latency on long inputs."
         ),
     )
+    models: list[str] | None = Field(
+        default=None,
+        description=(
+            "Sequence models to run, by id (see `sequence_models` in GET /api/capabilities). "
+            "Omit for the server default. Naming two or more runs each of them on the same "
+            "input and fills `comparison`; `results`/`meta` then hold the first one."
+        ),
+        json_schema_extra={"example": ["multirm"]},
+    )
 
 
 class PredictionMeta(BaseModel):
@@ -137,9 +146,24 @@ class PredictionMeta(BaseModel):
     )
 
 
+class ModelRun(BaseModel):
+    """One model's answer for the input, used when several were requested."""
+
+    model: str = Field(description="Model id, as listed in GET /api/capabilities.")
+    results: list[ModSite]
+    meta: PredictionMeta
+
+
 class PredictSequenceResponse(BaseModel):
     results: list[ModSite]
     meta: PredictionMeta
+    comparison: list[ModelRun] | None = Field(
+        default=None,
+        description=(
+            "Present only when the request named more than one model. Every requested model "
+            "in the requested order, the first repeating `results`/`meta` above."
+        ),
+    )
 
 
 class SampleSequenceResponse(BaseModel):

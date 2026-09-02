@@ -60,15 +60,29 @@ export interface PredictionMeta {
   attention: SiteAttention[] | null;
 }
 
+/** One model's answer, present when the request named more than one. */
+export interface ModelRun {
+  model: string;
+  results: ModSite[];
+  meta: PredictionMeta;
+}
+
 export interface PredictResponse {
   results: ModSite[];
   meta: PredictionMeta;
+  /**
+   * Only when the request named two or more models: every run in the requested order,
+   * the first repeating `results`/`meta`. Absent (or null) for a single-model request.
+   */
+  comparison?: ModelRun[] | null;
 }
 
 export interface PredictRequest {
   sequence: string;
   alpha?: number;
   include_attention?: boolean;
+  /** Model ids from `Capabilities.sequence_models`; omit for the server default. */
+  models?: string[];
 }
 
 export interface SampleResponse {
@@ -95,9 +109,27 @@ export function siteKey(site: Pick<ModSite, "position" | "mod_type"> & { strand?
  * -------------------------------------------------------------------------------------- */
 
 /** GET /api/capabilities */
+/** One sequence back-end the server loaded (GET /api/capabilities). */
+export interface SequenceModelInfo {
+  id: string;
+  label: string;
+  description: string;
+  /** The model used when a request names none. */
+  default: boolean;
+  /** What the back-end reports as meta.model_name / meta.model_version. */
+  name: string;
+  version: string;
+  /** Shortest input this model can score (its window size). */
+  min_sequence_nt?: number;
+  /** Longest input it accepts, when stricter than the server limit; absent otherwise. */
+  max_sequence_nt?: number | null;
+}
+
 export interface Capabilities {
   sequence: boolean;
   signal: boolean;
+  /** Absent against an older API: the UI then hides the picker and uses the default. */
+  sequence_models?: SequenceModelInfo[];
   limits: CapabilityLimits;
   retention: {
     /** Human sentence, e.g. "after feature extraction, at most 48 h". */

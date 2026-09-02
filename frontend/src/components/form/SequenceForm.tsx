@@ -4,6 +4,7 @@
  * the data-testid hooks used by the E2E tests.
  */
 import { useId } from "react";
+import type { SampleResponse } from "../../api/types";
 import { formatNt, MAX_NT, MIN_NT, type ClientNormalized } from "../../lib/sequence";
 
 export interface SequenceFormProps {
@@ -18,9 +19,15 @@ export interface SequenceFormProps {
   onRun: () => void;
   onCancel: () => void;
   onClear: () => void;
-  onLoadSample: () => void;
+  /** Name of the sample to load; omitted means the server default (the first one). */
+  onLoadSample: (name?: string) => void;
   onDownloadSample: () => void;
   sampleLoading: boolean;
+  /**
+   * Every sample this server offers. One button each when there is more than one, because
+   * a 151-nt example cannot feed a model with a 601-nt window.
+   */
+  samples?: SampleResponse[];
 }
 
 const ALPHA_PRESETS = [0.01, 0.05, 0.1];
@@ -46,16 +53,29 @@ export function SequenceForm(p: SequenceFormProps) {
         <label htmlFor={textId} className="font-medium">
           RNA / DNA sequence <span className="text-slate-500 font-normal">({MIN_NT}–{MAX_NT.toLocaleString("en-US")} nt, A/C/G/U/T, one FASTA record allowed)</span>
         </label>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            data-testid="load-sample"
-            onClick={p.onLoadSample}
-            disabled={p.busy || p.sampleLoading}
-            className="rounded bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-          >
-            {p.sampleLoading ? "Loading…" : "Load sample data"}
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {(p.samples && p.samples.length > 1 ? p.samples : [null]).map((sample, i) => (
+            <button
+              key={sample?.name ?? "default"}
+              type="button"
+              // The first button keeps the original hook: the E2E suite clicks it.
+              data-testid={i === 0 ? "load-sample" : `load-sample-${sample?.name}`}
+              title={sample?.description}
+              onClick={() => p.onLoadSample(sample?.name)}
+              disabled={p.busy || p.sampleLoading}
+              className={
+                i === 0
+                  ? "rounded bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                  : "rounded border border-brand-600 bg-white px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 disabled:opacity-50"
+              }
+            >
+              {p.sampleLoading && i === 0
+                ? "Loading…"
+                : sample
+                  ? `Sample (${sample.length.toLocaleString("en-US")} nt)`
+                  : "Load sample data"}
+            </button>
+          ))}
           <button
             type="button"
             data-testid="download-sample"

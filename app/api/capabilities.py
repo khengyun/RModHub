@@ -5,7 +5,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
-from app.jobs.schemas import Capabilities, Limits, Retention
+from app.jobs.schemas import Capabilities, Limits, Retention, SequenceModelInfo
+from app.predictors import SEQUENCE_MODELS
 
 router = APIRouter(prefix="/api", tags=["capabilities"])
 
@@ -13,8 +14,24 @@ router = APIRouter(prefix="/api", tags=["capabilities"])
 @router.get("/capabilities", response_model=Capabilities, summary="Enabled branches and limits")
 def get_capabilities(request: Request) -> Capabilities:
     s = request.app.state.settings
+    loaded = getattr(request.app.state, "predictors", None) or {}
+    models = [
+        SequenceModelInfo(
+            id=model_id,
+            label=SEQUENCE_MODELS[model_id].label,
+            description=SEQUENCE_MODELS[model_id].description,
+            default=i == 0,
+            name=predictor.name,
+            version=predictor.version,
+            min_sequence_nt=getattr(predictor, "min_sequence_nt", s.min_sequence_nt),
+            max_sequence_nt=getattr(predictor, "max_sequence_nt", None),
+        )
+        for i, (model_id, predictor) in enumerate(loaded.items())
+        if model_id in SEQUENCE_MODELS
+    ]
     return Capabilities(
         sequence=True,
+        sequence_models=models,
         signal=s.signal_enabled,
         limits=Limits(
             max_pod5_gb=s.max_pod5_gb,
