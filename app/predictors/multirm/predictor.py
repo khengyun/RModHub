@@ -86,6 +86,8 @@ def _build_kmer_table(embedding_keys: list[str]) -> np.ndarray:
 class MultiRMPredictor:
     """Implements `app.predictors.base.SequencePredictor` on top of the vendored MultiRM."""
 
+    min_sequence_nt = MIN_SEQUENCE_NT
+    max_sequence_nt = None  # bounded by RMODHUB_MAX_SEQUENCE_NT, not by the model
     name = "MultiRM"
     version = "trained_model_51seqs"
 

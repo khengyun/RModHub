@@ -35,6 +35,8 @@ name: rmodhub
 # Shared by api and worker (predictor settings, thread limits, log level).
 x-app-env: &app-env
   RMODHUB_PREDICTOR: ${RMODHUB_PREDICTOR:-multirm}
+  # Comma-separated model ids for the UI picker; empty means just RMODHUB_PREDICTOR.
+  RMODHUB_SEQUENCE_MODELS: ${RMODHUB_SEQUENCE_MODELS:-}
   RMODHUB_MAX_SEQUENCE_NT: ${RMODHUB_MAX_SEQUENCE_NT:-10000}
   RMODHUB_WARMUP: ${RMODHUB_WARMUP:-true}
   RMODHUB_LOG_LEVEL: ${RMODHUB_LOG_LEVEL:-info}

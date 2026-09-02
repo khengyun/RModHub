@@ -45,9 +45,19 @@ class Settings(BaseSettings):
     version: str = __version__
 
     # ------------------------------------------------------------------ sequence branch
-    predictor: Literal["multirm", "stub"] = Field(
+    predictor: Literal["multirm", "transrnam", "stub"] = Field(
         default="multirm",
-        description="'multirm' loads the real model; 'stub' is a torch-free fake for development.",
+        description=(
+            "Default sequence model: 'multirm' or 'transrnam' load real weights, 'stub' is a "
+            "torch-free fake for development."
+        ),
+    )
+    sequence_models: str = Field(
+        default="",
+        description=(
+            "Extra sequence back-ends to load beside `predictor`, comma-separated, e.g. "
+            "'transrnam'. `predictor` stays the default; empty means it is the only model."
+        ),
     )
     min_sequence_nt: int = Field(
         default=MIN_SEQUENCE_NT,
@@ -180,6 +190,33 @@ class Settings(BaseSettings):
         if os.environ.get("OMP_NUM_THREADS"):
             return None  # torch already reads it; e.g. the Dockerfile sets 1
         return min(4, os.cpu_count() or 1)
+
+    def enabled_sequence_models(self) -> list[str]:
+        """Model ids to load. `predictor` is always first (it is the default), then the
+        extras from `sequence_models` in the order given. Never empty, never repeats.
+
+        `sequence_models` adds models; it does not replace `predictor`. Otherwise setting
+        one of them in `.env` would silently override an explicit choice of the other.
+        """
+        ids = [self.predictor]
+        for part in self.sequence_models.split(","):
+            part = part.strip()
+            # A repeated id would put a second copy of the same weights in memory.
+            if part and part not in ids:
+                ids.append(part)
+        return ids
+
+    @model_validator(mode="after")
+    def _check_sequence_models(self) -> Settings:
+        from app.predictors import SEQUENCE_MODELS
+
+        unknown = [i for i in self.enabled_sequence_models() if i not in SEQUENCE_MODELS]
+        if unknown:
+            raise ValueError(
+                f"unknown sequence model(s) {unknown}; "
+                f"known ids: {sorted(SEQUENCE_MODELS)}"
+            )
+        return self
 
     @model_validator(mode="after")
     def _check_length_bounds(self) -> Settings:

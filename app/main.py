@@ -29,7 +29,7 @@ from app.jobs.cleanup import cleanup_loop
 from app.jobs.queue import make_queue
 from app.jobs.service import SignalContext
 from app.jobs.storage import JobStorage
-from app.predictors import create_sequence_predictor
+from app.predictors import create_sequence_predictors
 
 log = logging.getLogger(__name__)
 
@@ -162,17 +162,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         num_threads = settings.effective_torch_threads()
         if num_threads is not None:
             load_kwargs["num_threads"] = num_threads
-        predictor = create_sequence_predictor(settings.predictor, **load_kwargs)
+        model_ids = settings.enabled_sequence_models()
+        predictors = create_sequence_predictors(model_ids, **load_kwargs)
         if settings.warmup:
-            predictor.warmup()
+            for p in predictors.values():
+                p.warmup()
         log.info(
-            "model %s/%s loaded in %.2fs (warmup=%s)",
-            predictor.name,
-            predictor.version,
+            "sequence models %s loaded in %.2fs (warmup=%s)",
+            ", ".join(f"{i}={p.name}/{p.version}" for i, p in predictors.items()),
             perf_counter() - t0,
             settings.warmup,
         )
-        app.state.predictor = predictor
+        app.state.predictors = predictors
+        # The default model. Kept as its own attribute so /health, the CSV writer and every
+        # single-model caller stay unchanged.
+        app.state.predictor = predictors[model_ids[0]]
         app.state.started_at = time.monotonic()
 
         cleanup_task: asyncio.Task | None = None
@@ -197,6 +201,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if ctx is not None:
                 ctx.engine.dispose()
             app.state.predictor = None
+            app.state.predictors = {}
 
     landing_html = render_retention(LANDING_TEMPLATE, settings)
     app = FastAPI(
@@ -213,6 +218,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.predictor = None
+    app.state.predictors = {}
     app.state.started_at = None
     app.state.signal = None
 

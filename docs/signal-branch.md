@@ -148,6 +148,10 @@ All job/upload responses send `Cache-Control: no-store`.
 "max_regions", "max_running_per_ip", "max_queued_per_ip", "job_timeout_h", "tus_chunk_mb", "upload_ttl_h"},
 "retention": {"inputs_deleted": "after feature extraction, at most 48 h", "results_days": 14}}`
 (`max_bam_gb` = `RMODHUB_MAX_BAM_GB`, `upload_ttl_h` = `RMODHUB_UPLOAD_TTL_H`; section 11 items 4 and 45)
+The same response also carries `"sequence_models": [{"id","label","description","default"}]` — the
+sequence-branch models this deployment loaded (`RMODHUB_PREDICTOR` plus the extras in
+`RMODHUB_SEQUENCE_MODELS`; the first entry, `RMODHUB_PREDICTOR`, is the default). It belongs to the sequence branch but is served here so the UI has one capability
+call; the signal branch neither reads nor writes it.
 
 `GET /api/samples/signal` → `{"name","description","kit","files":[{"slot","filename","bytes","url"}],"source":"synthetic","regions":[...]}`;
 `GET /api/samples/signal/files/{filename}` serves the sample files (attachment).

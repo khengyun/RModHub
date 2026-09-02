@@ -1,0 +1,21 @@
+{
+  "upstream": "https://github.com/lennylv/TransRNAm",
+  "files": {
+    "transrnam.pt": {
+      "from": "Optimal_Model/Best_weights.pkl",
+      "original_sha256": "2527b41fc260cb158f17777ed184d01ab6347710b8fd2a72fd9ac8f53401f310",
+      "original_bytes": 21233611,
+      "sha256": "c2f65d572d991df05af8357c0266426c542c6df68995eb02cf0cb84890d94442",
+      "bytes": 21239913,
+      "note": "re-serialised with weights_only=True; tensor values unchanged (torch.equal)",
+      "n_tensors": 70,
+      "n_parameters": 5304764
+    },
+    "embeddings_12RM.pkl": {
+      "from": "Embeddings/embeddings_12RM.pkl",
+      "sha256": "b5c4b4dcc5894aaa8df17fad68312a76ce0f209d163b0a147ccd7cf88bc3792b",
+      "bytes": 118860,
+      "identical_to_multirm_copy": true
+    }
+  }
+}

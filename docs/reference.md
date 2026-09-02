@@ -67,7 +67,13 @@ Errors are always `{"detail": "<one plain sentence>"}`. Job and upload responses
   A single FASTA record (`>id description` on the first line) is accepted; `id` is returned as `transcript_id`.
 - `alpha`: significance level in (0, 1]; a site is reported when its empirical p-value is `< alpha`.
   Use `alpha=1` to get the full 12 × (N−50) matrix in long format.
-- `?format=csv` returns the same rows as a downloadable CSV.
+- `models`: which back-ends to run, by id (see `sequence_models` in `GET /api/capabilities`).
+  A model whose window does not fit the input answers 422 naming its own minimum/maximum.
+  Omit it for the server default. Naming two or more scores the same input with each and fills
+  `comparison`; `results`/`meta` then repeat the first one, so existing clients are unaffected.
+  An id the deployment did not load answers **422** naming what it does offer.
+- `?format=csv` returns the same rows as a downloadable CSV. A comparison export keeps the seven
+  shared columns and appends a `model` column, rows grouped per model in the requested order.
 
 Response:
 
@@ -85,6 +91,31 @@ Response:
 }
 ```
 
+With `"models": ["multirm", "other"]` the response gains `comparison`, one entry per requested
+model in the requested order, each `{"model": "<id>", "results": [...], "meta": {...}}`. It is
+absent (`null`) whenever a single model ran.
+
+Models in this build:
+
+| id | model | window | types | weights | notes |
+|---|---|---|---|---|---|
+| `multirm` | MultiRM (Song *et al.* 2021) | 51 nt | 12 | 8 MB | empirical p-value from `neg_prob.csv`; `alpha` filters |
+| `transrnam` | TransRNAm (Zhang *et al.*) | 601 nt | 12 | 21 MB | transformer + CNN; **no p-value**, rows are those with probability >= 0.5, and the input is capped at 2,000 nt (~18 ms per site on four threads) |
+| `stub` | development fake | 51 nt | 12 | - | torch-free, tests only |
+
+Both real models share the same frozen Word2Vec 3-mer table (`embeddings_12RM.pkl`, byte-identical
+in the two weight directories) and the same 12 modification types in `MOD_TYPES` order, so their
+rows line up position for position. `GET /api/capabilities` reports each model's
+`min_sequence_nt` / `max_sequence_nt` and the UI greys out a model the current input cannot feed.
+
+TransRNAm's checkpoint is re-serialised from the upstream raw pickle with `weights_only=True`
+(tensors only, never executable pickle) and the original sha256 is recorded in
+`app/predictors/transrnam/weights/WEIGHTS_MANIFEST.json`, the same treatment the DirectRM weights get.
+
+Which models a deployment loads is `RMODHUB_PREDICTOR` (the default model, always first) plus the
+comma-separated extras in `RMODHUB_SEQUENCE_MODELS`. The extras never replace `RMODHUB_PREDICTOR`. Every entry costs its own weights in memory,
+and each one is loaded once at startup like the default — no per-request loading.
+
 Invalid input returns **422** with a plain-language `detail` (`"at least 51 nt"`, `"at most 10000 nt"`,
 `"invalid character(s) in sequence: 'N'"`, `"alpha ..."`).
 
@@ -96,6 +127,8 @@ deployment offers:
 
 ```json
 {"sequence": true, "signal": true,
+ "sequence_models": [{"id": "multirm", "label": "MultiRM", "description": "...", "default": true,
+                      "name": "MultiRM", "version": "trained_model_51seqs"}],
  "limits": {"max_pod5_gb": 5, "max_bam_gb": 5, "max_reference_mb": 500, "max_regions": 10000,
             "max_running_per_ip": 1, "max_queued_per_ip": 3, "job_timeout_h": 6, "tus_chunk_mb": 64,
             "upload_ttl_h": 48},

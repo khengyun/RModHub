@@ -14,7 +14,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { ApiError, describeError, getCapabilities } from "../../api/client";
-import type { Capabilities } from "../../api/types";
+import type { Capabilities, SequenceModelInfo } from "../../api/types";
 
 /** Contract defaults (docs/signal-branch.md section 8), used until the server answers. */
 export const DEFAULT_CAPABILITIES: Capabilities = {
@@ -68,7 +68,21 @@ export function normalizeCapabilities(raw: Partial<Capabilities> | null | undefi
     signal: raw?.signal === true,
     limits: { ...DEFAULT_CAPABILITIES.limits, ...(raw?.limits ?? {}) },
     retention: { ...DEFAULT_CAPABILITIES.retention, ...(raw?.retention ?? {}) },
+    // Absent against an older API; the sequence page then hides the picker and lets the
+    // server pick its default model.
+    sequence_models: Array.isArray(raw?.sequence_models) ? raw.sequence_models : undefined,
   };
+}
+
+/** Models offered for the sequence branch; empty when the API does not report any. */
+export function sequenceModels(capabilities: Capabilities): SequenceModelInfo[] {
+  return capabilities.sequence_models ?? [];
+}
+
+/** The id the server uses when a request names no model, or null when unknown. */
+export function defaultSequenceModel(capabilities: Capabilities): string | null {
+  const models = sequenceModels(capabilities);
+  return (models.find((m) => m.default) ?? models[0])?.id ?? null;
 }
 
 export function CapabilitiesProvider({
